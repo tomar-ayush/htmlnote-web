@@ -4,7 +4,7 @@ import { editorStore, escapeHtml, getDoc } from "../editor/editor";
 import { insertLink } from "../format/format";
 import { TableTools } from "../tables/TableTools";
 import { Icon, type IconName } from "../ui/icons";
-import { Btn, Group } from "../ui/ui";
+import { Btn, Group, Row } from "../ui/ui";
 import { insertHtml, insertImageFile, insertVideoFile, tableHtml, videoLinkHtml } from "./insert";
 
 const clamp = (value: number, max: number) => Math.min(max, Math.max(1, value || 1));
@@ -49,24 +49,36 @@ export function InsertPanel() {
   return (
     <>
       <Group label="Table">
-        <label>
-          Rows <input type="number" min={1} max={50} value={rows} onChange={(e) => setRows(clamp(+e.target.value, 50))} />
-        </label>
-        <label>
-          Cols <input type="number" min={1} max={20} value={cols} onChange={(e) => setCols(clamp(+e.target.value, 20))} />
-        </label>
-        <Btn title="Insert a table at the cursor" disabled={!doc} onClick={() => insertHtml(tableHtml(rows, cols))}><Icon name="table" /> Insert table</Btn>
+        <Row>
+          <label>
+            Rows <input type="number" min={1} max={50} value={rows} onChange={(e) => setRows(clamp(+e.target.value, 50))} />
+          </label>
+          <label>
+            Cols <input type="number" min={1} max={20} value={cols} onChange={(e) => setCols(clamp(+e.target.value, 20))} />
+          </label>
+        </Row>
+        <Row>
+          <Btn title="Insert a table at the cursor" disabled={!doc} onClick={() => insertHtml(tableHtml(rows, cols))}><Icon name="table" /> Insert table</Btn>
+        </Row>
       </Group>
       <TableTools />
       <Group label="Media">
-        <FilePick accept="image/*" icon="image" label="Image" title="Insert an image from your computer" onFile={insertImageFile} />
-        <FilePick accept="video/mp4,video/webm,video/ogg" icon="video" label="Video" title="Insert a video file up to 25 MB" onFile={insertVideoFile} />
-        <Btn title="Insert a YouTube, Vimeo or video link" disabled={!doc} onClick={() => void videoLink()}><Icon name="videoLink" /> Video link</Btn>
+        <Row>
+          <FilePick accept="image/*" icon="image" label="Image" title="Insert an image from your computer" onFile={insertImageFile} />
+          <FilePick accept="video/mp4,video/webm,video/ogg" icon="video" label="Video" title="Insert a video file up to 25 MB" onFile={insertVideoFile} />
+        </Row>
+        <Row>
+          <Btn title="Insert a YouTube, Vimeo or video link" disabled={!doc} onClick={() => void videoLink()}><Icon name="videoLink" /> Video link</Btn>
+        </Row>
       </Group>
       <Group label="Other">
-        <Btn title="Add link (Ctrl+K)" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
-        <Btn title="Insert a horizontal line" disabled={!doc} onClick={() => insertHtml("<hr>")}><Icon name="lineRule" /> Line</Btn>
-        <Btn title="Insert today's date" disabled={!doc} onClick={today}><Icon name="calendar" /> Date</Btn>
+        <Row>
+          <Btn title="Add link (Ctrl+K)" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
+          <Btn title="Insert a horizontal line" disabled={!doc} onClick={() => insertHtml("<hr>")}><Icon name="lineRule" /> Line</Btn>
+        </Row>
+        <Row>
+          <Btn title="Insert today's date" disabled={!doc} onClick={today}><Icon name="calendar" /> Date</Btn>
+        </Row>
       </Group>
     </>
   );

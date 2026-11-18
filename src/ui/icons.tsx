@@ -306,6 +306,15 @@ const PATHS = {
       <path d="M12.6 8a5 5 0 1 0-1.2 4" />
     </>
   ),
+  share: (
+    <>
+      <circle cx="12" cy="3.5" r="1.8" />
+      <circle cx="4" cy="8" r="1.8" />
+      <circle cx="12" cy="12.5" r="1.8" />
+      <path d="m5.6 7.1 4.8-2.7M5.6 8.9l4.8 2.7" />
+    </>
+  ),
+  check: <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

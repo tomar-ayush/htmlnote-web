@@ -63,7 +63,20 @@ export const setShortcut = (key: string, fn: () => void) => {
 };
 export const getDoc = () => current?.doc ?? null;
 export const getPath = () => current?.path ?? null;
-export const focusDoc = () => frameEl?.contentWindow?.focus();
+export function focusDoc() {
+  frameEl?.contentWindow?.focus();
+  const doc = current?.doc;
+  if (!doc?.body) return;
+  if (doc.activeElement !== doc.body) doc.body.focus();
+  const sel = doc.getSelection();
+  if (sel && sel.rangeCount === 0) {
+    const target = doc.body.firstElementChild ?? doc.body;
+    const range = doc.createRange();
+    range.setStart(target, 0);
+    range.collapse(true);
+    sel.addRange(range);
+  }
+}
 
 export function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);

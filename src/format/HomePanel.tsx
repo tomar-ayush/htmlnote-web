@@ -1,8 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { DrawTools } from "../draw/DrawTools";
 import { editorStore, redo, undo } from "../editor/editor";
 import { openFind } from "../find/find";
+import { openShare } from "../share/share";
 import { Icon } from "../ui/icons";
-import { Btn, Group, NativeInput, Picker } from "../ui/ui";
+import { Btn, Group, NativeInput, Picker, Row } from "../ui/ui";
 import { activeCommands, clearFormatting, exec, inlineCode, insertLink, lineHeight, setFontSize } from "./format";
 
 const STATE_COMMANDS = [
@@ -39,7 +41,7 @@ const STYLES: [string, string][] = [
 ];
 
 export function HomePanel() {
-  const { doc } = editorStore.use();
+  const { doc, path } = editorStore.use();
   const [active, setActive] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -58,44 +60,62 @@ export function HomePanel() {
   return (
     <>
       <Group label="Undo">
-        <Btn title="Undo (Ctrl+Z)" disabled={!doc} onClick={undo}><Icon name="undo" /> Undo</Btn>
-        <Btn title="Redo (Ctrl+Shift+Z)" disabled={!doc} onClick={redo}><Icon name="redo" /></Btn>
+        <Row>
+          <Btn title="Undo (Ctrl+Z)" disabled={!doc} onClick={undo}><Icon name="undo" /> Undo</Btn>
+        </Row>
+        <Row>
+          <Btn title="Redo (Ctrl+Shift+Z)" disabled={!doc} onClick={redo}><Icon name="redo" /> Redo</Btn>
+        </Row>
       </Group>
       <Group label="Text">
-        <Picker placeholder="Style" title="Paragraph style" options={STYLES} onPick={(v) => exec("formatBlock", `<${v}>`)} />
-        <Picker placeholder="Font" title="Font" options={FONTS} onPick={(v) => exec("fontName", v)} />
-        <Picker placeholder="Size" title="Font size" options={SIZES} onPick={setFontSize} />
-        {cmd("bold", "Bold (Ctrl+B)", <b>B</b>)}
-        {cmd("italic", "Italic (Ctrl+I)", <i>I</i>)}
-        {cmd("underline", "Underline (Ctrl+U)", <u>U</u>)}
-        {cmd("strikeThrough", "Strikethrough", <s>S</s>)}
-        <Btn title="Inline code" disabled={!doc} onClick={inlineCode}><Icon name="code" /></Btn>
-        <label className="swatch" title="Text color">
-          <span className="swatch-letter">A</span>
-          <NativeInput type="color" value="#c92a2a" onCommit={(v) => exec("foreColor", v)} />
-        </label>
-        <label className="swatch" title="Highlight">
-          <span className="swatch-letter mark">ab</span>
-          <NativeInput type="color" value="#ffe066" onCommit={(v) => exec("hiliteColor", v)} />
-        </label>
-        <Btn title="Clear formatting" disabled={!doc} onClick={clearFormatting}><Icon name="clear" /> Clear</Btn>
+        <Row>
+          <Picker placeholder="Style" title="Paragraph style" options={STYLES} onPick={(v) => exec("formatBlock", `<${v}>`)} />
+          <Picker placeholder="Font" title="Font" options={FONTS} onPick={(v) => exec("fontName", v)} />
+          <Picker placeholder="Size" title="Font size" options={SIZES} onPick={setFontSize} />
+        </Row>
+        <Row>
+          {cmd("bold", "Bold (Ctrl+B)", <b>B</b>)}
+          {cmd("italic", "Italic (Ctrl+I)", <i>I</i>)}
+          {cmd("underline", "Underline (Ctrl+U)", <u>U</u>)}
+          {cmd("strikeThrough", "Strikethrough", <s>S</s>)}
+          <Btn title="Inline code" disabled={!doc} onClick={inlineCode}><Icon name="code" /></Btn>
+          <label className="swatch" title="Text color">
+            <span className="swatch-letter">A</span>
+            <NativeInput type="color" value="#c92a2a" onCommit={(v) => exec("foreColor", v)} />
+          </label>
+          <label className="swatch" title="Highlight">
+            <span className="swatch-letter mark">ab</span>
+            <NativeInput type="color" value="#ffe066" onCommit={(v) => exec("hiliteColor", v)} />
+          </label>
+          <Btn title="Clear formatting" disabled={!doc} onClick={clearFormatting}><Icon name="clear" /> Clear</Btn>
+        </Row>
       </Group>
       <Group label="Paragraph">
-        {cmd("insertUnorderedList", "Bulleted list", <><Icon name="listBullet" /> List</>)}
-        {cmd("insertOrderedList", "Numbered list", <><Icon name="listNumber" /> Numbered</>)}
-        {cmd("outdent", "Decrease indent", <Icon name="outdent" />)}
-        {cmd("indent", "Increase indent", <Icon name="indent" />)}
-        {cmd("justifyLeft", "Align left", <><Icon name="alignLeft" /> Left</>)}
-        {cmd("justifyCenter", "Center", <><Icon name="alignCenter" /> Center</>)}
-        {cmd("justifyRight", "Align right", <><Icon name="alignRight" /> Right</>)}
-        <Btn title="Less line spacing" disabled={!doc} onClick={() => lineHeight(-0.2)}><Icon name="lineHeight" />−</Btn>
-        <Btn title="More line spacing" disabled={!doc} onClick={() => lineHeight(0.2)}><Icon name="lineHeight" />+</Btn>
+        <Row>
+          {cmd("insertUnorderedList", "Bulleted list", <><Icon name="listBullet" /> List</>)}
+          {cmd("insertOrderedList", "Numbered list", <><Icon name="listNumber" /> Numbered</>)}
+          {cmd("outdent", "Decrease indent", <Icon name="outdent" />)}
+          {cmd("indent", "Increase indent", <Icon name="indent" />)}
+        </Row>
+        <Row>
+          {cmd("justifyLeft", "Align left", <><Icon name="alignLeft" /> Left</>)}
+          {cmd("justifyCenter", "Center", <><Icon name="alignCenter" /> Center</>)}
+          {cmd("justifyRight", "Align right", <><Icon name="alignRight" /> Right</>)}
+          <Btn title="Less line spacing" disabled={!doc} onClick={() => lineHeight(-0.2)}><Icon name="lineHeight" />−</Btn>
+          <Btn title="More line spacing" disabled={!doc} onClick={() => lineHeight(0.2)}><Icon name="lineHeight" />+</Btn>
+        </Row>
       </Group>
-      <Group label="Links and search">
-        <Btn title="Add link (Ctrl+K)" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
-        <Btn title="Remove link" disabled={!doc} onClick={() => exec("unlink")}><Icon name="unlink" /> Unlink</Btn>
-        <Btn title="Find and replace (Ctrl+F)" disabled={!doc} onClick={openFind}><Icon name="search" /> Find</Btn>
+      <Group label="Links & share">
+        <Row>
+          <Btn title="Add link (Ctrl+K)" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
+          <Btn title="Remove link" disabled={!doc} onClick={() => exec("unlink")}><Icon name="unlink" /> Unlink</Btn>
+        </Row>
+        <Row>
+          <Btn title="Find and replace (Ctrl+F)" disabled={!doc} onClick={openFind}><Icon name="search" /> Find</Btn>
+          <Btn title="Share page" disabled={!path} onClick={() => path && openShare(path)}><Icon name="share" /> Share</Btn>
+        </Row>
       </Group>
+      <DrawTools />
     </>
   );
 }

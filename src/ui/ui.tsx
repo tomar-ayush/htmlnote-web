@@ -9,6 +9,10 @@ export function Group({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+export function Row({ children }: { children: ReactNode }) {
+  return <div className="group-row">{children}</div>;
+}
+
 type BtnProps = { onClick: () => void; title?: string; on?: boolean; disabled?: boolean; children: ReactNode };
 
 export function Btn({ onClick, title, on, disabled, children }: BtnProps) {

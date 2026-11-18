@@ -409,8 +409,8 @@ input {
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
-  height: 58px;
-  padding: 6px 10px 4px;
+  height: 96px;
+  padding: 6px 10px 6px;
   background: #fafbfc;
   overflow-x: auto;
   overflow-y: hidden;
@@ -421,6 +421,7 @@ input {
   flex: none;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   padding: 0 10px;
   border-right: 1px solid var(--line);
 }
@@ -430,11 +431,18 @@ input {
 }
 
 .group-items {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  height: 64px;
+}
+
+.group-row {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   height: 30px;
 }
 
@@ -763,8 +771,9 @@ input {
   overflow: auto;
 }
 
-.canvas iframe {
-  display: block;
+.page-sheet {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 900px;
   height: 100%;
@@ -772,6 +781,71 @@ input {
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.page-sheet.is-empty {
+  visibility: hidden;
+}
+
+.page-title-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 48px 12px;
+  border-bottom: 1.5px solid #e2e7ef;
+  background: #ffffff;
+}
+
+.page-title-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  padding: 2px 0;
+}
+
+.page-title-input::placeholder {
+  color: #98a2b3;
+  font-weight: 600;
+}
+
+.page-share-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms var(--ease-out), border-color 150ms var(--ease-out);
+}
+
+.page-share-btn:hover {
+  background: var(--hover);
+  border-color: #c8cfd8;
+}
+
+.page-sheet iframe {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #ffffff;
 }
 
 .empty {
@@ -1146,9 +1220,127 @@ input {
   flex: 1;
 }
 
-.storage-actions .danger-outline {
+.storage-actions .danger-outline,
+.share-modal .danger-outline {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.share-modal {
+  width: min(520px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.share-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.share-head h2 {
+  margin: 0;
+}
+
+.share-page-name {
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-expiry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.share-expiry-row select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--chrome);
+}
+
+.share-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.share-url-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-url-row input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0 9px;
+  font-size: 12.5px;
+  background: var(--panel);
+}
+
+.share-url-row button,
+.share-inline-actions button,
+.share-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.share-url-row button:hover,
+.share-inline-actions button:hover:not(:disabled),
+.share-open-btn:hover {
+  background: var(--hover);
+}
+
+.share-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-inline-actions .primary-btn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.share-inline-actions .primary-btn:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(0.95);
 }
 
 .header-btn:active:not(:disabled),

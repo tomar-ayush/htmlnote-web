@@ -21,6 +21,7 @@ const config = {
     { src: "^/api/(.*)$", dest: `${raw}/api/$1` },
     { src: "^/page/(.*)$", dest: `${raw}/page/$1` },
     { src: "^/view/(.*)$", dest: `${raw}/view/$1` },
+    { src: "^/s/(.*)$", dest: `${raw}/s/$1` },
     { handle: "filesystem" },
     { src: "^/(.*)$", dest: "/index.html" },
   ],

@@ -81,11 +81,27 @@ export const api = {
   },
 };
 
+export interface ShareInfo {
+  shared: boolean;
+  token: string | null;
+  url: string | null;
+  expiresAt: string | null;
+}
+
 export const storageApi = {
   get: () => call<StorageConfig>("GET", "/api/storage"),
   test: (input: StorageInput) => call<{ ok: boolean }>("POST", "/api/storage/test", input),
   save: (input: StorageInput) => call<StorageConfig>("PUT", "/api/storage", input),
   clear: () => call<StorageConfig>("DELETE", "/api/storage"),
+};
+
+export const shareApi = {
+  get: (path: string) => call<ShareInfo>("GET", `/api/share?path=${q(path)}`),
+  create: (path: string, expiresHours: number | null) =>
+    call<ShareInfo>("POST", "/api/share", { path, expiresHours }),
+  presign: (path: string, expiresHours: number | null) =>
+    call<{ url: string; expiresIn: number }>("POST", "/api/share/presign", { path, expiresHours }),
+  revoke: (path: string) => call<ShareInfo>("DELETE", `/api/share?path=${q(path)}`),
 };
 
 export const pageUrl = (kind: "page" | "view", path: string) => `/${kind}/${path.split("/").map(q).join("/")}`;

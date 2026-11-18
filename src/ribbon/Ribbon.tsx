@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { DesignPanel } from "../design/DesignPanel";
-import { DrawTools } from "../draw/DrawTools";
 import { HomePanel } from "../format/HomePanel";
 import { SaveStatus } from "../header/Header";
 import { HistoryPanel } from "../history/HistoryPanel";
@@ -10,7 +9,6 @@ import { Icon, type IconName } from "../ui/icons";
 const TABS = {
   home: ["Home", "tabHome", HomePanel],
   insert: ["Insert", "tabInsert", InsertPanel],
-  draw: ["Draw", "tabDraw", DrawTools],
   design: ["Design", "tabDesign", DesignPanel],
   history: ["History", "tabHistory", HistoryPanel],
 } as const;

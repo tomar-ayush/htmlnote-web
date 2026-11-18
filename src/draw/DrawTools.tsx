@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { editorStore } from "../editor/editor";
 import { Icon, type IconName } from "../ui/icons";
-import { Btn, Group } from "../ui/ui";
+import { Btn, Group, Row } from "../ui/ui";
 import { attachDraw, clearDrawing, type DrawController, type Tool } from "./draw";
 
-const TOOLS: [Tool, IconName, string, string][] = [
+const ROW1_TOOLS: [Tool, IconName, string, string][] = [
   ["select", "selectCursor", "Select", "Click a shape, then press Delete"],
   ["pen", "pen", "Pen", "Freehand"],
   ["line", "slashLine", "Line", "Straight line"],
   ["arrow", "arrowUpRight", "Arrow", "Arrow"],
   ["rect", "rect", "Box", "Rectangle"],
   ["ellipse", "circle", "Circle", "Ellipse"],
+];
+
+const ROW2_TOOLS: [Tool, IconName, string, string][] = [
   ["text", "labelTag", "Label", "Text on the drawing"],
   ["eraser", "eraser", "Eraser", "Click or drag over shapes to erase"],
 ];
 
 export function DrawTools() {
   const { doc, revision } = editorStore.use();
-  const [tool, setTool] = useState<Tool | null>("pen");
+  const [tool, setTool] = useState<Tool | null>(null);
   const [color, setColor] = useState("#d9480f");
   const [width, setWidth] = useState(3);
   const [hasSelection, setHasSelection] = useState(false);
@@ -41,20 +44,23 @@ export function DrawTools() {
   }, [doc, drawing, revision]);
 
   return (
-    <>
-      <Group label="Mode">
+    <Group label="Draw">
+      <Row>
         <Btn title="Type and edit text" on={!drawing} onClick={() => setTool(null)}>
           <Icon name="typeText" /> Type
         </Btn>
-      </Group>
-      <Group label="Tools">
-        {TOOLS.map(([id, icon, label, title]) => (
+        {ROW1_TOOLS.map(([id, icon, label, title]) => (
           <Btn key={id} title={title} on={tool === id} disabled={!doc} onClick={() => setTool(id)}>
             <Icon name={icon} /> {label}
           </Btn>
         ))}
-      </Group>
-      <Group label="Stroke">
+      </Row>
+      <Row>
+        {ROW2_TOOLS.map(([id, icon, label, title]) => (
+          <Btn key={id} title={title} on={tool === id} disabled={!doc} onClick={() => setTool(id)}>
+            <Icon name={icon} /> {label}
+          </Btn>
+        ))}
         <label className="swatch" title="Pen color">
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
         </label>
@@ -69,7 +75,7 @@ export function DrawTools() {
         <Btn title="Remove every drawing on this page" disabled={!doc} onClick={() => doc && clearDrawing(doc)}>
           <Icon name="clear" /> Clear all
         </Btn>
-      </Group>
-    </>
+      </Row>
+    </Group>
   );
 }

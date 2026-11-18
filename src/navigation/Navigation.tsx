@@ -34,16 +34,6 @@ function recall() {
 }
 
 function blankPage(title: string) {
-  const stamp = escapeHtml(
-    new Date().toLocaleString(undefined, {
-      weekday: "long",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  );
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,15 +41,11 @@ function blankPage(title: string) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>
-body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;max-width:760px;margin:0 auto;padding:38px 48px 64px;line-height:1.6;color:#1f2329}
-.hn-title{font-size:28px;font-weight:700;line-height:1.25;margin:0;outline:none}
-.hn-meta{margin:8px 0 24px;padding-bottom:14px;border-bottom:1.5px solid #e2e7ef;font-size:12.5px;color:#7a8494;user-select:none}
-[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;font-weight:500;pointer-events:none}
+body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;max-width:760px;margin:0 auto;padding:28px 48px 64px;line-height:1.6;color:#1f2329}
+[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;pointer-events:none}
 </style>
 </head>
 <body>
-<h1 class="hn-title" data-placeholder="Page title"><br></h1>
-<div class="hn-meta" contenteditable="false">${stamp}</div>
 <p data-placeholder="Start writing your note, or paste HTML…"><br></p>
 </body>
 </html>
@@ -211,6 +197,14 @@ function NameInput({ value, onDone }: { value: string; onDone: (name: string | n
 const guard = (fn: () => Promise<unknown>) => () => {
   fn().catch((err: Error) => notify(err.message, "error"));
 };
+
+type RenameHandler = (path: string, oldName: string, name: string | null) => void;
+let renameHandler: RenameHandler | null = null;
+
+export function requestPageRename(path: string, newName: string) {
+  const leaf = path.split("/").pop()?.replace(PAGE_FILE, "") ?? "";
+  renameHandler?.(path, leaf, newName);
+}
 
 export function Navigation() {
   const { path: pagePath } = editorStore.use();
@@ -479,6 +473,16 @@ export function Navigation() {
         },
       );
     })();
+
+  const renameRef = useRef(finishRename);
+  renameRef.current = finishRename;
+
+  useEffect(() => {
+    renameHandler = (p, o, n) => renameRef.current(p, o, n);
+    return () => {
+      renameHandler = null;
+    };
+  }, []);
 
   const label = (path: string, name: string) =>
     editing === path ? (

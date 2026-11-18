@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { api, pageUrl, type Version } from "../api/api";
 import { confirmAction, notify } from "../dialog/dialog";
 import { editorStore, flush, openPage } from "../editor/editor";
+import { openShare } from "../share/share";
 import { Icon } from "../ui/icons";
-import { Btn, Group } from "../ui/ui";
+import { Btn, Group, Row } from "../ui/ui";
 
 export function HistoryPanel() {
   const { path, savedAt } = editorStore.use();
@@ -46,39 +47,69 @@ export function HistoryPanel() {
       <Group label="Page">
         {path ? (
           <>
-            <a className="btn" href={pageUrl("view", path)} target="_blank" rel="noopener">
-              <Icon name="external" /> Open in new tab
-            </a>
-            <a className="btn" href={pageUrl("page", path)} download={path.split("/").pop()}>
-              <Icon name="download" /> Download .html
-            </a>
+            <Row>
+              <a className="btn" href={pageUrl("view", path)} target="_blank" rel="noopener">
+                <Icon name="external" /> Open in new tab
+              </a>
+              <a className="btn" href={pageUrl("page", path)} download={path.split("/").pop()}>
+                <Icon name="download" /> Download .html
+              </a>
+            </Row>
+            <Row>
+              <Btn title="Share page" onClick={() => openShare(path)}>
+                <Icon name="share" /> Share page
+              </Btn>
+            </Row>
           </>
         ) : (
-          <span className="hint">Open a page to see its history.</span>
+          <>
+            <Row>
+              <span className="hint">Open a page to see its options.</span>
+            </Row>
+            <Row>
+              <Btn disabled onClick={() => {}}>
+                <Icon name="share" /> Share page
+              </Btn>
+            </Row>
+          </>
         )}
       </Group>
       <Group label="Versions (last 10)">
-        {!path && <span className="hint">No page open.</span>}
-        {path && versions === null && <span className="hint">Loading…</span>}
-        {versions?.length === 0 && (
-          <span className="hint">No earlier versions yet (snapshots save every 5 min).</span>
-        )}
-        {versions && versions.length > 0 && (
+        {versions && versions.length > 0 ? (
           <>
-            <select
-              title="Saved versions"
-              value={selectedVersion?.id ?? ""}
-              onChange={(e) => setSelectedId(e.target.value)}
-            >
-              {versions.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {new Date(v.savedAt).toLocaleString()} ({Math.ceil(v.size / 1024)} KB)
-                </option>
-              ))}
-            </select>
-            <Btn disabled={!selectedVersion} onClick={() => selectedVersion && void restore(selectedVersion)}>
-              <Icon name="restore" /> Restore
-            </Btn>
+            <Row>
+              <select
+                title="Saved versions"
+                value={selectedVersion?.id ?? ""}
+                onChange={(e) => setSelectedId(e.target.value)}
+              >
+                {versions.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {new Date(v.savedAt).toLocaleString()} ({Math.ceil(v.size / 1024)} KB)
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <Row>
+              <Btn disabled={!selectedVersion} onClick={() => selectedVersion && void restore(selectedVersion)}>
+                <Icon name="restore" /> Restore
+              </Btn>
+            </Row>
+          </>
+        ) : (
+          <>
+            <Row>
+              {!path && <span className="hint">No page open.</span>}
+              {path && versions === null && <span className="hint">Loading…</span>}
+              {versions?.length === 0 && (
+                <span className="hint">No earlier versions yet (snapshots save every 5 min).</span>
+              )}
+            </Row>
+            <Row>
+              <Btn disabled onClick={() => {}}>
+                <Icon name="restore" /> Restore
+              </Btn>
+            </Row>
           </>
         )}
       </Group>
