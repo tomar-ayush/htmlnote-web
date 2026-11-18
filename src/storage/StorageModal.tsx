@@ -15,7 +15,7 @@ const PRESETS: { id: Preset; label: string; endpointPlaceholder: string }[] = [
 const B2_HOST = /^https?:\/\/s3\.([a-z0-9-]+)\.backblazeb2\.com/i;
 
 function detectPreset(config: StorageConfig | null | undefined): Preset {
-  if (!config?.configured) return "r2";
+  if (config?.mode !== "custom") return "r2";
   if (config.endpointUrl.includes(".r2.cloudflarestorage.com")) return "r2";
   if (config.endpointUrl.includes(".backblazeb2.com")) return "b2";
   if (!config.endpointUrl) return "aws";
@@ -23,14 +23,16 @@ function detectPreset(config: StorageConfig | null | undefined): Preset {
 }
 
 function StorageForm({ config, modal }: { config: StorageConfig | null | undefined; modal: boolean }) {
+  const isCustom = config?.mode === "custom";
+  const isManaged = config?.mode === "managed";
   const [preset, setPreset] = useState<Preset>(() => detectPreset(config));
-  const [endpointUrl, setEndpointUrl] = useState(config?.endpointUrl ?? "");
-  const [region, setRegion] = useState(config?.region || "auto");
-  const [bucket, setBucket] = useState(config?.bucket ?? "");
-  const [accessKeyId, setAccessKeyId] = useState(config?.accessKeyId ?? "");
+  const [endpointUrl, setEndpointUrl] = useState(isCustom ? config.endpointUrl : "");
+  const [region, setRegion] = useState((isCustom && config.region) || "auto");
+  const [bucket, setBucket] = useState(isCustom ? config.bucket : "");
+  const [accessKeyId, setAccessKeyId] = useState(isCustom ? config.accessKeyId : "");
   const [secretAccessKey, setSecretAccessKey] = useState("");
-  const [prefix, setPrefix] = useState(config?.prefix ?? "");
-  const [forcePathStyle, setForcePathStyle] = useState(config?.forcePathStyle ?? false);
+  const [prefix, setPrefix] = useState(isCustom ? config.prefix : "");
+  const [forcePathStyle, setForcePathStyle] = useState(isCustom ? config.forcePathStyle : false);
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const endpointRef = useRef<HTMLInputElement>(null);
@@ -96,7 +98,7 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
   };
 
   const disconnect = async () => {
-    if (!(await confirmAction("Disconnect object storage?", "Your notebooks stay in your bucket. You can reconnect anytime.", "Disconnect"))) return;
+    if (!(await confirmAction("Disconnect custom bucket?", "Your notebooks stay in your bucket. You can reconnect anytime.", "Disconnect"))) return;
     setBusy(true);
     setStatus(null);
     try {
@@ -109,7 +111,12 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
 
   const activePreset = PRESETS.find((p) => p.id === preset)!;
   const endpointRequired = preset !== "aws";
-  const secretRequired = !config?.hasSecretKey;
+  const secretRequired = !isCustom || !config?.hasSecretKey;
+  const usedBytes = config?.usedBytes ?? 0;
+  const quotaBytes = Math.max(1, config?.quotaBytes ?? 50 * 1024 * 1024);
+  const usedMb = (usedBytes / (1024 * 1024)).toFixed(1);
+  const quotaMb = Math.max(1, Math.round(quotaBytes / (1024 * 1024)));
+  const pct = Math.min(100, Math.round((usedBytes / quotaBytes) * 100));
 
   return (
     <form
@@ -124,10 +131,23 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
     >
       <div className="storage-head">
         <div>
-          <h1 id="storage-title">{config?.configured ? "Object storage settings" : "Connect object storage"}</h1>
+          <h1 id="storage-title">{isCustom ? "Object storage settings" : "Connect object storage"}</h1>
           <p className="hint">Notes are saved as .html files directly in your S3-compatible bucket. Fields marked * are required.</p>
         </div>
       </div>
+
+      {isManaged && (
+        <div className="storage-managed">
+          <div className="storage-managed-top">
+            <strong>Free managed storage</strong>
+            <span>{usedMb} MB of {quotaMb} MB used</span>
+          </div>
+          <div className="storage-meter" aria-hidden="true">
+            <div className="storage-meter-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="hint">Connect your own Cloudflare R2, Backblaze B2, or S3 bucket below anytime for unlimited storage.</p>
+        </div>
+      )}
 
       <div className="storage-presets" role="group" aria-label="Storage provider">
         {PRESETS.map((p) => (
@@ -212,7 +232,7 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
           <input
             type="password"
             autoComplete="new-password"
-            placeholder={config?.hasSecretKey ? "Leave blank to keep saved key" : ""}
+            placeholder={isCustom && config?.hasSecretKey ? "Leave blank to keep saved key" : ""}
             required={secretRequired}
             value={secretAccessKey}
             onChange={(e) => setSecretAccessKey(e.target.value)}
@@ -251,7 +271,7 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
       )}
 
       <div className="dialog-actions storage-actions">
-        {config?.configured && (
+        {isCustom && (
           <button type="button" className="danger-outline" disabled={busy} onClick={() => void disconnect()}>
             Disconnect
           </button>
@@ -287,7 +307,7 @@ export function StorageModal() {
   if (!open) return null;
   return (
     <div className="dialog-backdrop storage-backdrop" onMouseDown={(e) => e.target === e.currentTarget && closeStorage()}>
-      <StorageForm key={`${config?.bucket ?? "new"}-${open}`} config={config} modal />
+      <StorageForm key={`${config?.mode ?? "new"}-${config?.bucket ?? ""}-${open}`} config={config} modal />
     </div>
   );
 }

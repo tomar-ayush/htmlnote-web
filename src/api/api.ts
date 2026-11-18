@@ -6,6 +6,9 @@ export type Version = { id: string; savedAt: number; size: number };
 export type User = { id: string; email: string };
 export type StorageConfig = {
   configured: boolean;
+  mode: "custom" | "managed" | "none";
+  usedBytes: number | null;
+  quotaBytes: number | null;
   endpointUrl: string;
   region: string;
   bucket: string;

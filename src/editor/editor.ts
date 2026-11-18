@@ -243,6 +243,29 @@ export const undo = () => restore(undoStack, redoStack);
 export const redo = () => restore(redoStack, undoStack);
 
 function onKeyDown(e: KeyboardEvent) {
+  if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && current) {
+    const sel = current.doc.getSelection();
+    const anchor = sel?.anchorNode;
+    const anchorEl = anchor ? (anchor.nodeType === 1 ? (anchor as Element) : anchor.parentElement) : null;
+    if (anchorEl?.closest(".hn-title")) {
+      e.preventDefault();
+      let target = current.doc.querySelector(".hn-meta")?.nextElementSibling as HTMLElement | null;
+      if (!target || target.getAttribute("contenteditable") === "false") {
+        target = current.doc.createElement("p");
+        target.innerHTML = "<br>";
+        const meta = current.doc.querySelector(".hn-meta");
+        if (meta) meta.after(target);
+        else current.doc.body.appendChild(target);
+      }
+      const range = current.doc.createRange();
+      range.setStart(target, 0);
+      range.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      commit();
+      return;
+    }
+  }
   if (!(e.metaKey || e.ctrlKey)) return;
   const key = e.key.toLowerCase();
   const builtIn: Record<string, () => void> = {

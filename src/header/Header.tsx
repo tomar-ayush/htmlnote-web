@@ -3,6 +3,7 @@ import { signOut, userStore } from "../auth/auth";
 import { notify } from "../dialog/dialog";
 import { editorStore, saveNow, setAutosave } from "../editor/editor";
 import { openStorage, storageStore } from "../storage/storage";
+import { Icon } from "../ui/icons";
 
 function ago(ms: number) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -12,7 +13,7 @@ function ago(ms: number) {
   return `at ${new Date(Date.now() - ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function SaveStatus() {
+export function SaveStatus() {
   const { path, autosave, dirty, saving, savedAt, error } = editorStore.use();
   const [now, setNow] = useState(Date.now());
 
@@ -23,6 +24,7 @@ function SaveStatus() {
   }, [savedAt]);
 
   if (!path) return null;
+  const tone = error ? "error" : saving || dirty ? "dirty" : savedAt ? "saved" : "idle";
   const text = error
     ? `Not saved: ${error}`
     : saving
@@ -31,14 +33,15 @@ function SaveStatus() {
         ? autosave ? "Saving soon…" : "Unsaved changes"
         : savedAt
           ? `Saved ${ago(now - savedAt)}`
-          : "No changes yet";
+          : "All changes saved";
 
   return (
     <div className="save">
-      <span className={`save-text${error ? " error" : dirty ? " dirty" : ""}`} aria-live="polite">{text}</span>
+      <span className={`save-dot ${tone}`} aria-hidden="true" />
+      <span className={`save-text ${tone}`} aria-live="polite">{text}</span>
       {(!autosave || error) && (
-        <button type="button" className="header-btn compact primary" disabled={!dirty || saving} onClick={() => void saveNow()} title="Save (Ctrl+S)">
-          Save
+        <button type="button" className="header-btn save-btn primary" disabled={!dirty || saving} onClick={() => void saveNow()} title="Save (Ctrl+S)">
+          <Icon name="save" size={14} /> Save
         </button>
       )}
       <label className="toggle" title="Save changes automatically">
@@ -57,6 +60,18 @@ export function Header() {
   const parts = path ? path.replace(/\.html?$/i, "").split("/") : [];
   const page = parts.pop();
 
+  let storageLabel = "Storage";
+  let storageTitle = "Configure object storage";
+  if (config?.mode === "custom") {
+    storageLabel = `Storage: ${config.bucket}`;
+    storageTitle = `Custom bucket: ${config.bucket}`;
+  } else if (config?.mode === "managed") {
+    const mb = ((config.usedBytes ?? 0) / (1024 * 1024)).toFixed(1);
+    const cap = Math.max(1, Math.round((config.quotaBytes ?? 50 * 1024 * 1024) / (1024 * 1024)));
+    storageLabel = `Storage: ${mb} / ${cap} MB`;
+    storageTitle = "Free managed R2 storage — click to view usage or connect your own bucket";
+  }
+
   return (
     <header className="header">
       <div className="brand" aria-label="HTML Notebook">
@@ -69,26 +84,20 @@ export function Header() {
         ))}
         {page && <span className="crumb current">{page}</span>}
       </nav>
-      <div className="header-right">
-        <div className="account">
-          <span className="account-email" title={user?.email}>{user?.email}</span>
-          <button
-            type="button"
-            className="header-btn"
-            onClick={openStorage}
-            title={config?.configured ? `Bucket: ${config.bucket}` : "Configure object storage"}
-          >
-            {config?.configured ? `Storage: ${config.bucket}` : "Storage"}
-          </button>
-          <button
-            type="button"
-            className="header-btn"
-            onClick={() => signOut().catch((err: Error) => notify(err.message, "error"))}
-          >
-            Sign out
-          </button>
-        </div>
-        <SaveStatus />
+      <div className="account">
+        {user?.email && <span className="account-email" title={user.email}>{user.email}</span>}
+        <button type="button" className="header-btn" onClick={openStorage} title={storageTitle}>
+          <Icon name="storage" size={14} />
+          {storageLabel}
+        </button>
+        <button
+          type="button"
+          className="header-btn"
+          onClick={() => signOut().catch((err: Error) => notify(err.message, "error"))}
+        >
+          <Icon name="logout" size={14} />
+          Sign out
+        </button>
       </div>
     </header>
   );

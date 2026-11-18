@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, pageUrl, type Version } from "../api/api";
 import { confirmAction, notify } from "../dialog/dialog";
 import { editorStore, flush, openPage } from "../editor/editor";
+import { Icon } from "../ui/icons";
 import { Btn, Group } from "../ui/ui";
 
 export function HistoryPanel() {
@@ -45,8 +46,12 @@ export function HistoryPanel() {
       <Group label="Page">
         {path ? (
           <>
-            <a className="btn" href={pageUrl("view", path)} target="_blank" rel="noopener">Open in new tab</a>
-            <a className="btn" href={pageUrl("page", path)} download={path.split("/").pop()}>Download .html</a>
+            <a className="btn" href={pageUrl("view", path)} target="_blank" rel="noopener">
+              <Icon name="external" /> Open in new tab
+            </a>
+            <a className="btn" href={pageUrl("page", path)} download={path.split("/").pop()}>
+              <Icon name="download" /> Download .html
+            </a>
           </>
         ) : (
           <span className="hint">Open a page to see its history.</span>
@@ -72,7 +77,7 @@ export function HistoryPanel() {
               ))}
             </select>
             <Btn disabled={!selectedVersion} onClick={() => selectedVersion && void restore(selectedVersion)}>
-              Restore
+              <Icon name="restore" /> Restore
             </Btn>
           </>
         )}

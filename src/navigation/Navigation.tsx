@@ -12,6 +12,7 @@ import {
   repathOpenPage,
   setCachedPage,
 } from "../editor/editor";
+import { Icon } from "../ui/icons";
 
 const COLORS = ["#1f5f7a", "#b5482b", "#2f7d4f", "#7a4fb0", "#b07d12", "#3a6fd8", "#a33d6b", "#4c6a6e"];
 const LAST_KEY = "htmlnote:last";
@@ -33,17 +34,33 @@ function recall() {
 }
 
 function blankPage(title: string) {
+  const stamp = escapeHtml(
+    new Date().toLocaleString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  );
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
-<style>body{font-family:"Segoe UI",system-ui,sans-serif;max-width:860px;margin:40px auto;padding:0 24px;line-height:1.55;color:#1f2329}</style>
+<style>
+body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;max-width:760px;margin:0 auto;padding:38px 48px 64px;line-height:1.6;color:#1f2329}
+.hn-title{font-size:28px;font-weight:700;line-height:1.25;margin:0;outline:none}
+.hn-meta{margin:8px 0 24px;padding-bottom:14px;border-bottom:1.5px solid #e2e7ef;font-size:12.5px;color:#7a8494;user-select:none}
+[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;font-weight:500;pointer-events:none}
+</style>
 </head>
 <body>
-<h1><br></h1>
-<p><br></p>
+<h1 class="hn-title" data-placeholder="Page title"><br></h1>
+<div class="hn-meta" contenteditable="false">${stamp}</div>
+<p data-placeholder="Start writing your note, or paste HTML…"><br></p>
 </body>
 </html>
 `;
@@ -483,7 +500,7 @@ export function Navigation() {
       <aside className="pane notebooks" aria-label="Notebooks">
         <div className="pane-head">
           <span>Notebooks</span>
-          <button type="button" className="add" onClick={addNotebook}>+ Notebook</button>
+          <button type="button" className="add" onClick={addNotebook}><Icon name="plus" size={13} /> Notebook</button>
         </div>
         {!notebooks.length && <p className="hint">Add a notebook to start collecting pages.</p>}
         {notebooks.map((nb) => (
@@ -537,8 +554,8 @@ export function Navigation() {
           <span>{section?.name ?? "Pages"}</span>
         </div>
         <div className="page-actions">
-          <button type="button" disabled={!section} onClick={addPage}>+ Page</button>
-          <button type="button" disabled={!section} onClick={() => importInput.current?.click()}>Import .html</button>
+          <button type="button" disabled={!section} onClick={addPage}><Icon name="plus" size={13} /> Page</button>
+          <button type="button" disabled={!section} onClick={() => importInput.current?.click()}><Icon name="upload" size={13} /> Import .html</button>
           <input
             ref={importInput}
             type="file"

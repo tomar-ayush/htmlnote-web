@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { editorStore } from "../editor/editor";
+import { Icon, type IconName } from "../ui/icons";
 import { Btn, Group } from "../ui/ui";
 import { attachDraw, clearDrawing, type DrawController, type Tool } from "./draw";
 
-const TOOLS: [Tool, string, string][] = [
-  ["select", "Select shape", "Click a shape, then press Delete"],
-  ["pen", "Pen", "Freehand"],
-  ["line", "Line", "Straight line"],
-  ["arrow", "Arrow", "Arrow"],
-  ["rect", "Box", "Rectangle"],
-  ["ellipse", "Circle", "Ellipse"],
-  ["text", "Label", "Text on the drawing"],
-  ["eraser", "Eraser", "Click or drag over shapes to erase"],
+const TOOLS: [Tool, IconName, string, string][] = [
+  ["select", "selectCursor", "Select", "Click a shape, then press Delete"],
+  ["pen", "pen", "Pen", "Freehand"],
+  ["line", "slashLine", "Line", "Straight line"],
+  ["arrow", "arrowUpRight", "Arrow", "Arrow"],
+  ["rect", "rect", "Box", "Rectangle"],
+  ["ellipse", "circle", "Circle", "Ellipse"],
+  ["text", "labelTag", "Label", "Text on the drawing"],
+  ["eraser", "eraser", "Eraser", "Click or drag over shapes to erase"],
 ];
 
 export function DrawTools() {
@@ -40,27 +41,35 @@ export function DrawTools() {
   }, [doc, drawing, revision]);
 
   return (
-    <Group label="Draw">
-      <Btn title="Type and edit text" on={!drawing} onClick={() => setTool(null)}>Type</Btn>
-      {TOOLS.map(([id, label, title]) => (
-        <Btn key={id} title={title} on={tool === id} disabled={!doc} onClick={() => setTool(id)}>
-          {label}
+    <>
+      <Group label="Mode">
+        <Btn title="Type and edit text" on={!drawing} onClick={() => setTool(null)}>
+          <Icon name="typeText" /> Type
         </Btn>
-      ))}
-      <label className="swatch" title="Pen color">
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
-      </label>
-      <select title="Pen width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
-        {[2, 3, 5, 8].map((w) => (
-          <option key={w} value={w}>{w} px</option>
+      </Group>
+      <Group label="Tools">
+        {TOOLS.map(([id, icon, label, title]) => (
+          <Btn key={id} title={title} on={tool === id} disabled={!doc} onClick={() => setTool(id)}>
+            <Icon name={icon} /> {label}
+          </Btn>
         ))}
-      </select>
-      <Btn title="Delete the selected shape (Delete key)" disabled={!hasSelection} onClick={() => controller.current?.deleteSelected()}>
-        Delete shape
-      </Btn>
-      <Btn title="Remove every drawing on this page" disabled={!doc} onClick={() => doc && clearDrawing(doc)}>
-        Clear drawings
-      </Btn>
-    </Group>
+      </Group>
+      <Group label="Stroke">
+        <label className="swatch" title="Pen color">
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+        </label>
+        <select title="Pen width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
+          {[2, 3, 5, 8].map((w) => (
+            <option key={w} value={w}>{w} px</option>
+          ))}
+        </select>
+        <Btn title="Delete the selected shape (Delete key)" disabled={!hasSelection} onClick={() => controller.current?.deleteSelected()}>
+          <Icon name="trash" /> Delete
+        </Btn>
+        <Btn title="Remove every drawing on this page" disabled={!doc} onClick={() => doc && clearDrawing(doc)}>
+          <Icon name="clear" /> Clear all
+        </Btn>
+      </Group>
+    </>
   );
 }
