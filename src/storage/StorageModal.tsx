@@ -1,7 +1,16 @@
 import { useRef, useState, type FormEvent } from "react";
 import { storageApi, type StorageConfig, type StorageInput } from "../api/api";
 import { confirmAction } from "../dialog/dialog";
-import { closeStorage, disconnectStorage, saveStorage, storageStore } from "./storage";
+import { Icon } from "../ui/icons";
+import {
+  closeStorage,
+  connectGoogleDrive,
+  disconnectGoogleDrive,
+  disconnectStorage,
+  saveStorage,
+  storageStore,
+  switchProvider,
+} from "./storage";
 
 type Preset = "r2" | "b2" | "aws" | "custom";
 
@@ -23,8 +32,10 @@ function detectPreset(config: StorageConfig | null | undefined): Preset {
 }
 
 function StorageForm({ config, modal }: { config: StorageConfig | null | undefined; modal: boolean }) {
-  const isCustom = config?.mode === "custom";
-  const isManaged = config?.mode === "managed";
+  const isCustom = config?.s3Mode === "custom";
+  const isManaged = config?.s3Mode === "managed";
+  const isDriveConnected = Boolean(config?.driveConnected);
+  const isDriveActive = config?.mode === "gdrive";
   const [preset, setPreset] = useState<Preset>(() => detectPreset(config));
   const [endpointUrl, setEndpointUrl] = useState(isCustom ? config.endpointUrl : "");
   const [region, setRegion] = useState((isCustom && config.region) || "auto");
@@ -109,6 +120,40 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
     }
   };
 
+  const startDriveConnect = async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      await connectGoogleDrive();
+    } catch (err) {
+      setStatus({ kind: "error", text: (err as Error).message });
+      setBusy(false);
+    }
+  };
+
+  const activateProvider = async (provider: "gdrive" | "s3") => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      await switchProvider(provider);
+    } catch (err) {
+      setStatus({ kind: "error", text: (err as Error).message });
+      setBusy(false);
+    }
+  };
+
+  const removeDrive = async () => {
+    if (!(await confirmAction("Disconnect Google Drive?", "Your HTML Notebook folder remains in your Google Drive.", "Disconnect"))) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      await disconnectGoogleDrive();
+    } catch (err) {
+      setStatus({ kind: "error", text: (err as Error).message });
+      setBusy(false);
+    }
+  };
+
   const activePreset = PRESETS.find((p) => p.id === preset)!;
   const endpointRequired = preset !== "aws";
   const secretRequired = !isCustom || !config?.hasSecretKey;
@@ -131,21 +176,80 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
     >
       <div className="storage-head">
         <div>
-          <h1 id="storage-title">{isCustom ? "Object storage settings" : "Connect object storage"}</h1>
-          <p className="hint">Notes are saved as .html files directly in your S3-compatible bucket. Fields marked * are required.</p>
+          <h1 id="storage-title">{isCustom || isDriveActive ? "Storage settings" : "Connect storage"}</h1>
+          <p className="hint">Keep notes synced in Google Drive or any S3-compatible bucket. Both stay completely separate.</p>
         </div>
+      </div>
+
+      <section className={`drive-panel${isDriveActive ? " active" : ""}`}>
+        <div className="drive-panel-head">
+          <div className="drive-title-row">
+            <Icon name="drive" size={16} />
+            <strong>Google Drive Sync</strong>
+            {isDriveActive && <span className="drive-badge active">Active</span>}
+            {!isDriveActive && isDriveConnected && <span className="drive-badge">Connected</span>}
+          </div>
+          {isDriveConnected ? (
+            <span className="hint">
+              Folder: {config?.driveFolderName || "HTML Notebook"}
+              {config?.driveEmail ? ` (${config.driveEmail})` : ""}
+            </span>
+          ) : (
+            <span className="hint">
+              {config?.driveAvailable
+                ? "Creates an isolated HTML Notebook folder tree in your Google Drive with background browser sync."
+                : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the backend server to enable OAuth."}
+            </span>
+          )}
+        </div>
+        <div className="drive-actions-row">
+          {isDriveConnected ? (
+            <>
+              {!isDriveActive && (
+                <button type="button" className="drive-btn primary" disabled={busy} onClick={() => void activateProvider("gdrive")}>
+                  Switch to Google Drive
+                </button>
+              )}
+              {isDriveActive && config?.s3Mode !== "none" && (
+                <button type="button" className="drive-btn" disabled={busy} onClick={() => void activateProvider("s3")}>
+                  Switch to Object Storage
+                </button>
+              )}
+              <button type="button" className="drive-btn" disabled={busy} onClick={() => void startDriveConnect()}>
+                Reconnect
+              </button>
+              <button type="button" className="drive-btn danger-outline" disabled={busy} onClick={() => void removeDrive()}>
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="drive-btn primary"
+              disabled={busy || !config?.driveAvailable}
+              onClick={() => void startDriveConnect()}
+            >
+              <Icon name="drive" size={14} />
+              <span>Connect Google Drive</span>
+            </button>
+          )}
+        </div>
+      </section>
+
+      <div className="storage-section-divider">
+        <span>S3-compatible Object Storage</span>
       </div>
 
       {isManaged && (
         <div className="storage-managed">
           <div className="storage-managed-top">
-            <strong>Free managed storage</strong>
+            <strong>Free managed R2 storage</strong>
             <span>{usedMb} MB of {quotaMb} MB used</span>
           </div>
           <div className="storage-meter" aria-hidden="true">
             <div className="storage-meter-fill" style={{ width: `${pct}%` }} />
           </div>
-          <p className="hint">Connect your own Cloudflare R2, Backblaze B2, or S3 bucket below anytime for unlimited storage.</p>
+          <p className="hint">Connect your own Cloudflare R2, Backblaze B2, or S3 bucket below anytime for unlimited space.</p>
         </div>
       )}
 
@@ -307,7 +411,7 @@ export function StorageModal() {
   if (!open) return null;
   return (
     <div className="dialog-backdrop storage-backdrop" onMouseDown={(e) => e.target === e.currentTarget && closeStorage()}>
-      <StorageForm key={`${config?.mode ?? "new"}-${config?.bucket ?? ""}-${open}`} config={config} modal />
+      <StorageForm key={`${config?.mode ?? "new"}-${config?.s3Mode ?? "none"}-${config?.driveActive ? 1 : 0}-${config?.bucket ?? ""}-${open}`} config={config} modal />
     </div>
   );
 }

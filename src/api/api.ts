@@ -6,7 +6,8 @@ export type Version = { id: string; savedAt: number; size: number };
 export type User = { id: string; email: string };
 export type StorageConfig = {
   configured: boolean;
-  mode: "custom" | "managed" | "none";
+  mode: "gdrive" | "custom" | "managed" | "none";
+  s3Mode: "custom" | "managed" | "none";
   usedBytes: number | null;
   quotaBytes: number | null;
   endpointUrl: string;
@@ -16,6 +17,11 @@ export type StorageConfig = {
   hasSecretKey: boolean;
   prefix: string;
   forcePathStyle: boolean;
+  driveAvailable: boolean;
+  driveConnected: boolean;
+  driveActive: boolean;
+  driveEmail: string;
+  driveFolderName: string;
 };
 export type StorageInput = {
   endpointUrl: string;
@@ -95,12 +101,16 @@ export const storageApi = {
   clear: () => call<StorageConfig>("DELETE", "/api/storage"),
 };
 
+export const driveApi = {
+  authUrl: () => call<{ url: string }>("GET", "/api/drive/auth-url"),
+  setProvider: (provider: "gdrive" | "s3") => call<StorageConfig>("POST", "/api/drive/provider", { provider }),
+  disconnect: () => call<StorageConfig>("DELETE", "/api/drive"),
+};
+
 export const shareApi = {
   get: (path: string) => call<ShareInfo>("GET", `/api/share?path=${q(path)}`),
   create: (path: string, expiresHours: number | null) =>
     call<ShareInfo>("POST", "/api/share", { path, expiresHours }),
-  presign: (path: string, expiresHours: number | null) =>
-    call<{ url: string; expiresIn: number }>("POST", "/api/share/presign", { path, expiresHours }),
   revoke: (path: string) => call<ShareInfo>("DELETE", `/api/share?path=${q(path)}`),
 };
 

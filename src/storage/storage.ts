@@ -1,6 +1,6 @@
-import { storageApi, type StorageConfig, type StorageInput } from "../api/api";
+import { driveApi, storageApi, type StorageConfig, type StorageInput } from "../api/api";
 import { notify } from "../dialog/dialog";
-import { flush, openPage } from "../editor/editor";
+import { clearPageCache, flushAll, openPage } from "../editor/editor";
 import { createStore } from "../store/store";
 
 type StorageState = {
@@ -34,17 +34,43 @@ export const openStorage = () => patch({ open: true });
 export const closeStorage = () => patch({ open: false });
 
 export async function saveStorage(input: StorageInput) {
-  await flush();
+  await flushAll();
   await openPage(null);
+  clearPageCache();
   const config = await storageApi.save(input);
   storageStore.set({ config, open: false, revision: storageStore.get().revision + 1 });
   notify("Object storage connected.");
 }
 
 export async function disconnectStorage() {
-  await flush();
+  await flushAll();
   await openPage(null);
+  clearPageCache();
   const config = await storageApi.clear();
   storageStore.set({ config, open: false, revision: storageStore.get().revision + 1 });
   notify("Object storage disconnected.");
+}
+
+export async function connectGoogleDrive() {
+  await flushAll();
+  const { url } = await driveApi.authUrl();
+  window.location.href = url;
+}
+
+export async function switchProvider(provider: "gdrive" | "s3") {
+  await flushAll();
+  await openPage(null);
+  clearPageCache();
+  const config = await driveApi.setProvider(provider);
+  storageStore.set({ config, open: false, revision: storageStore.get().revision + 1 });
+  notify(provider === "gdrive" ? "Switched active storage to Google Drive." : "Switched active storage to Object Storage.");
+}
+
+export async function disconnectGoogleDrive() {
+  await flushAll();
+  await openPage(null);
+  clearPageCache();
+  const config = await driveApi.disconnect();
+  storageStore.set({ config, open: false, revision: storageStore.get().revision + 1 });
+  notify("Google Drive disconnected.");
 }

@@ -11,7 +11,16 @@ import {
   removeCachedPrefix,
   repathOpenPage,
   setCachedPage,
+  setHtmlDocTitle,
+  syncPendingLocal,
 } from "../editor/editor";
+import {
+  currentSyncScope,
+  readLocalTree,
+  registerNavFlush,
+  registerPathResolver,
+  writeLocalTree,
+} from "../sync/localdb";
 import { Icon } from "../ui/icons";
 
 const COLORS = ["#1f5f7a", "#b5482b", "#2f7d4f", "#7a4fb0", "#b07d12", "#3a6fd8", "#a33d6b", "#4c6a6e"];
@@ -41,8 +50,9 @@ function blankPage(title: string) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>
-body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;max-width:760px;margin:0 auto;padding:28px 48px 64px;line-height:1.6;color:#1f2329}
-[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;pointer-events:none}
+body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:15px;font-weight:400;max-width:760px;margin:0 auto;padding:28px 48px 64px;line-height:1.6;color:#1f2329}
+p{margin:0 0 10px;font-size:15px;font-weight:400}
+[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;font-weight:400;pointer-events:none}
 </style>
 </head>
 <body>
@@ -216,6 +226,7 @@ export function Navigation() {
   const importInput = useRef<HTMLInputElement>(null);
   const queueRef = useRef(Promise.resolve());
   const aliasRef = useRef(new Map<string, string>());
+  const treeReadyRef = useRef(false);
 
   const resolvePath = (local: string) => {
     let cur = local;
@@ -226,10 +237,14 @@ export function Navigation() {
     }
     return cur;
   };
+  const resolvePathRef = useRef(resolvePath);
+  resolvePathRef.current = resolvePath;
 
   const load = useCallback(async () => {
     const tree = await api.tree();
+    treeReadyRef.current = true;
     setNotebooks(tree);
+    void writeLocalTree(currentSyncScope(), tree);
     return tree;
   }, []);
 
@@ -265,8 +280,34 @@ export function Navigation() {
   );
 
   useEffect(() => {
+    registerNavFlush(() => queueRef.current);
+    registerPathResolver((p) => resolvePathRef.current(p));
+    return () => {
+      registerNavFlush(null);
+      registerPathResolver(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const scope = currentSyncScope();
+    void readLocalTree(scope).then((cachedTree) => {
+      if (cancelled || treeReadyRef.current || !cachedTree?.length) return;
+      treeReadyRef.current = true;
+      setNotebooks(cachedTree);
+      const last = recall();
+      const all = cachedTree.flatMap((nb) => nb.sections);
+      const home = all.find((s) => s.pages.some((p) => p.path === last));
+      if (home) {
+        setSectionPath(home.path);
+        void selectPage(last);
+      } else if (all[0]) {
+        selectSection(cachedTree, all[0].path);
+      }
+    });
     load()
       .then((tree) => {
+        if (cancelled) return;
         const last = recall();
         const all = tree.flatMap((nb) => nb.sections);
         const home = all.find((s) => s.pages.some((p) => p.path === last));
@@ -274,9 +315,17 @@ export function Navigation() {
           setSectionPath(home.path);
           void selectPage(last);
         } else if (all[0]) selectSection(tree, all[0].path);
+        void syncPendingLocal(scope);
       })
       .catch((err: Error) => notify(`Cannot reach the server: ${err.message}`, "error"));
+    return () => {
+      cancelled = true;
+    };
   }, [load, selectPage, selectSection]);
+
+  useEffect(() => {
+    if (treeReadyRef.current) void writeLocalTree(currentSyncScope(), notebooks);
+  }, [notebooks]);
 
   useEffect(() => {
     const sec = findSection(notebooks, sectionPath);
@@ -295,6 +344,7 @@ export function Navigation() {
   };
 
   const addNotebook = () => {
+    treeReadyRef.current = true;
     const prevTree = notebooks;
     const prevSec = sectionPath;
     const nbName = uniqueFolderName(notebooks.map((n) => n.name), "Untitled notebook");
@@ -389,8 +439,9 @@ export function Navigation() {
       const { stem, file } = uniquePageFile(taken, entry.rawName);
       taken.push(stem);
       const localPath = `${section.path}/${file}`;
-      setCachedPage(localPath, entry.html);
-      created.push({ stem, path: localPath, rawName: entry.rawName, html: entry.html });
+      const titledHtml = setHtmlDocTitle(entry.html, stem);
+      setCachedPage(localPath, titledHtml);
+      created.push({ stem, path: localPath, rawName: entry.rawName, html: titledHtml });
     }
     const nextTree = notebooks.map((nb) => ({
       ...nb,

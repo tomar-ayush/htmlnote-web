@@ -1,6 +1,16 @@
 import { api } from "../api/api";
 import { notify } from "../dialog/dialog";
 import { createStore } from "../store/store";
+import {
+  currentSyncScope,
+  flushNavQueue,
+  listDirtyPages,
+  moveLocalPrefix,
+  readLocalPage,
+  removeLocalPrefix,
+  resolveCanonicalPath,
+  writeLocalPage,
+} from "../sync/localdb";
 
 type Current = { path: string; doc: Document; prevEditable: string | null };
 export type EditorState = {
@@ -9,13 +19,15 @@ export type EditorState = {
   revision: number;
   autosave: boolean;
   dirty: boolean;
+  localSaved: boolean;
   saving: boolean;
   savedAt: number | null;
   error: string;
 };
 
-const SAVE_DELAY = 1000;
-const TYPING_GROUP = 700;
+const SAVE_DELAY = 6000;
+const LOCAL_DELAY = 150;
+const TYPING_GROUP = 400;
 const MAX_UNDO = 100;
 const AUTOSAVE_KEY = "htmlnote:autosave";
 
@@ -33,6 +45,7 @@ export const editorStore = createStore<EditorState>({
   revision: 0,
   autosave: readAutosave(),
   dirty: false,
+  localSaved: false,
   saving: false,
   savedAt: null,
   error: "",
@@ -45,6 +58,7 @@ let frameEl: HTMLIFrameElement | null = null;
 let current: Current | null = null;
 let token = 0;
 let saveTimer = 0;
+let localTimer = 0;
 let pending = false;
 let typingTimer = 0;
 let saving: Promise<void> = Promise.resolve();
@@ -82,8 +96,34 @@ export function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-export function setCachedPage(path: string, html: string) {
+export function pageTitleFromPath(path: string) {
+  return (path.split("/").pop() ?? "").replace(/\.html?$/i, "").trim() || "Untitled page";
+}
+
+export function setHtmlDocTitle(rawHtml: string, title: string) {
+  const cleanTitle = escapeHtml(title.trim() || "Untitled page");
+  const tag = `<title>${cleanTitle}</title>`;
+  if (!rawHtml.trim()) {
+    return `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n${tag}\n</head>\n<body><p><br></p></body>\n</html>\n`;
+  }
+  if (/<title\b[^>]*>[\s\S]*?<\/title>/i.test(rawHtml)) {
+    return rawHtml.replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, tag);
+  }
+  if (/<head\b[^>]*>/i.test(rawHtml)) {
+    return rawHtml.replace(/<head\b[^>]*>/i, (m) => `${m}\n${tag}`);
+  }
+  if (/<html\b[^>]*>/i.test(rawHtml)) {
+    return rawHtml.replace(/<html\b[^>]*>/i, (m) => `${m}\n<head>${tag}</head>`);
+  }
+  if (/^\s*<!doctype[^>]*>/i.test(rawHtml)) {
+    return rawHtml.replace(/^\s*<!doctype[^>]*>\s*/i, (m) => `${m}<head>${tag}</head>\n`);
+  }
+  return `<head>${tag}</head>\n${rawHtml}`;
+}
+
+export function setCachedPage(path: string, html: string, dirty = false) {
   pageCache.set(path, html);
+  void writeLocalPage(currentSyncScope(), path, html, dirty);
 }
 
 export function clearPageCache() {
@@ -94,10 +134,12 @@ export function clearPageCache() {
 export function moveCachedPrefix(oldPrefix: string, newPrefix: string) {
   for (const [k, v] of [...pageCache.entries()]) {
     if (k === oldPrefix || k.startsWith(`${oldPrefix}/`)) {
+      const nextPath = newPrefix + k.slice(oldPrefix.length);
       pageCache.delete(k);
-      pageCache.set(newPrefix + k.slice(oldPrefix.length), v);
+      pageCache.set(nextPath, setHtmlDocTitle(v, pageTitleFromPath(nextPath)));
     }
   }
+  void moveLocalPrefix(currentSyncScope(), oldPrefix, newPrefix);
 }
 
 export function removeCachedPrefix(prefix: string) {
@@ -106,6 +148,7 @@ export function removeCachedPrefix(prefix: string) {
       pageCache.delete(k);
     }
   }
+  void removeLocalPrefix(currentSyncScope(), prefix);
 }
 
 export function repathOpenPage(oldPrefix: string, newPrefix: string) {
@@ -113,6 +156,7 @@ export function repathOpenPage(oldPrefix: string, newPrefix: string) {
   if (current.path === oldPrefix || current.path.startsWith(`${oldPrefix}/`)) {
     const nextPath = newPrefix + current.path.slice(oldPrefix.length);
     current.path = nextPath;
+    current.doc.title = pageTitleFromPath(nextPath);
     update({ path: nextPath });
   }
 }
@@ -120,10 +164,14 @@ export function repathOpenPage(oldPrefix: string, newPrefix: string) {
 function fetchPage(path: string): Promise<string> {
   const existing = inflightReads.get(path);
   if (existing) return existing;
+  const scope = currentSyncScope();
   const p = api
     .readPage(path)
     .then((html) => {
       pageCache.set(path, html);
+      void readLocalPage(scope, path).then((local) => {
+        if (!local?.dirty) void writeLocalPage(scope, path, html, false);
+      });
       return html;
     })
     .finally(() => inflightReads.delete(path));
@@ -133,9 +181,30 @@ function fetchPage(path: string): Promise<string> {
 
 export async function prefetchPage(path: string) {
   if (pageCache.has(path)) return;
+  const local = await readLocalPage(currentSyncScope(), path);
+  if (local) {
+    pageCache.set(path, local.html);
+    return;
+  }
   try {
     await fetchPage(path);
   } catch {}
+}
+
+function normalizeBody(doc: Document) {
+  doc.querySelectorAll("h1.hn-title").forEach((h1) => {
+    if (!(h1.textContent ?? "").trim() && h1.nextElementSibling) {
+      h1.remove();
+    } else {
+      const p = doc.createElement("p");
+      p.innerHTML = h1.innerHTML;
+      h1.replaceWith(p);
+    }
+  });
+  doc.querySelectorAll(".hn-meta").forEach((el) => el.remove());
+  if (!doc.body.innerHTML.trim()) {
+    doc.body.innerHTML = '<p data-placeholder="Start writing your note, or paste HTML…"><br></p>';
+  }
 }
 
 function mountHtml(el: HTMLIFrameElement, path: string, html: string, mine: number) {
@@ -145,6 +214,8 @@ function mountHtml(el: HTMLIFrameElement, path: string, html: string, mine: numb
   doc.write(html || "<!DOCTYPE html><html><head></head><body></body></html>");
   doc.close();
   if (mine !== token || !doc.body) return;
+  normalizeBody(doc);
+  doc.title = pageTitleFromPath(path);
   const prevEditable = doc.body.getAttribute("contenteditable");
   current = { path, doc, prevEditable };
   doc.body.setAttribute("contenteditable", "true");
@@ -162,9 +233,10 @@ export async function openPage(path: string | null, forceReload = false) {
   const mine = ++token;
   current = null;
   clearTimeout(saveTimer);
+  clearTimeout(localTimer);
   clearTimeout(typingTimer);
   pending = false;
-  update({ path, doc: null, dirty: false, savedAt: null, error: "" });
+  update({ path, doc: null, dirty: false, localSaved: false, savedAt: null, error: "" });
   const el = frameEl;
   if (!el) return;
   if (!path) {
@@ -185,9 +257,18 @@ export async function openPage(path: string | null, forceReload = false) {
     });
   }
   if (mine !== token) return;
-  const cached = !forceReload ? pageCache.get(path) : undefined;
+  const scope = currentSyncScope();
+  const local = !forceReload ? await readLocalPage(scope, path) : null;
+  if (mine !== token) return;
+  const cached = !forceReload ? pageCache.get(path) ?? local?.html : undefined;
   if (cached !== undefined) {
     mountHtml(el, path, cached, mine);
+    if (local?.dirty) {
+      pending = true;
+      update({ dirty: true, localSaved: true });
+      if (editorStore.get().autosave) saveTimer = window.setTimeout(save, SAVE_DELAY);
+      return;
+    }
     void fetchPage(path).then(
       (fresh) => {
         if (mine === token && current?.path === path && !pending && fresh !== cached) {
@@ -256,29 +337,6 @@ export const undo = () => restore(undoStack, redoStack);
 export const redo = () => restore(redoStack, undoStack);
 
 function onKeyDown(e: KeyboardEvent) {
-  if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && current) {
-    const sel = current.doc.getSelection();
-    const anchor = sel?.anchorNode;
-    const anchorEl = anchor ? (anchor.nodeType === 1 ? (anchor as Element) : anchor.parentElement) : null;
-    if (anchorEl?.closest(".hn-title")) {
-      e.preventDefault();
-      let target = current.doc.querySelector(".hn-meta")?.nextElementSibling as HTMLElement | null;
-      if (!target || target.getAttribute("contenteditable") === "false") {
-        target = current.doc.createElement("p");
-        target.innerHTML = "<br>";
-        const meta = current.doc.querySelector(".hn-meta");
-        if (meta) meta.after(target);
-        else current.doc.body.appendChild(target);
-      }
-      const range = current.doc.createRange();
-      range.setStart(target, 0);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      commit();
-      return;
-    }
-  }
   if (!(e.metaKey || e.ctrlKey)) return;
   const key = e.key.toLowerCase();
   const builtIn: Record<string, () => void> = {
@@ -292,7 +350,7 @@ function onKeyDown(e: KeyboardEvent) {
   action();
 }
 
-function cleanHtml({ doc, prevEditable }: Current) {
+function cleanHtml({ doc, prevEditable, path }: Current) {
   const clone = doc.documentElement.cloneNode(true) as HTMLElement;
   clone.querySelectorAll("[data-hn-root]").forEach((n) => n.remove());
   const body = clone.querySelector("body")!;
@@ -302,13 +360,27 @@ function cleanHtml({ doc, prevEditable }: Current) {
   const doctype = dt
     ? `<!DOCTYPE ${dt.name}${dt.publicId ? ` PUBLIC "${dt.publicId}"` : ""}${dt.systemId ? ` "${dt.systemId}"` : ""}>`
     : "<!DOCTYPE html>";
-  return `${doctype}\n${clone.outerHTML}`;
+  return setHtmlDocTitle(`${doctype}\n${clone.outerHTML}`, pageTitleFromPath(path));
+}
+
+function persistLocal() {
+  if (!current) return;
+  const path = resolveCanonicalPath(current.path);
+  const html = cleanHtml(current);
+  pageCache.set(path, html);
+  void writeLocalPage(currentSyncScope(), path, html, true).then(() => {
+    if (current && resolveCanonicalPath(current.path) === path && pending) {
+      update({ localSaved: true });
+    }
+  });
 }
 
 function scheduleSave() {
   if (!current) return;
   pending = true;
   update({ dirty: true });
+  clearTimeout(localTimer);
+  localTimer = window.setTimeout(persistLocal, LOCAL_DELAY);
   clearTimeout(saveTimer);
   if (editorStore.get().autosave) saveTimer = window.setTimeout(save, SAVE_DELAY);
 }
@@ -317,26 +389,41 @@ function save() {
   if (!current) return saving;
   commit();
   clearTimeout(saveTimer);
+  clearTimeout(localTimer);
   saveTimer = 0;
+  localTimer = 0;
   pending = false;
-  const { path } = current;
+  const rawPath = current.path;
   const html = cleanHtml(current);
-  pageCache.set(path, html);
-  update({ dirty: false, saving: true, error: "" });
+  const scope = currentSyncScope();
+  pageCache.set(rawPath, html);
+  void writeLocalPage(scope, resolveCanonicalPath(rawPath), html, true);
+  update({ dirty: false, saving: true, localSaved: true, error: "" });
   saving = saving
-    .then(() => api.savePage(path, html))
+    .then(async () => {
+      await flushNavQueue();
+      const targetPath = resolveCanonicalPath(rawPath);
+      pageCache.set(targetPath, html);
+      await writeLocalPage(scope, targetPath, html, true);
+      await api.savePage(targetPath, html);
+      await writeLocalPage(scope, targetPath, html, false);
+      return targetPath;
+    })
     .then(
-      () => {
-        if (current?.path === path) update({ saving: false, savedAt: Date.now() });
-        else update({ saving: false });
-      },
-      (err: Error) => {
-        if (current?.path === path) {
-          pending = true;
-          update({ saving: false, dirty: true, error: err.message });
+      (targetPath) => {
+        if (current && resolveCanonicalPath(current.path) === targetPath) {
+          update({ saving: false, localSaved: false, savedAt: Date.now() });
         } else {
           update({ saving: false });
-          notify(`Could not save "${path}": ${err.message}`, "error");
+        }
+      },
+      (err: Error) => {
+        if (current && resolveCanonicalPath(current.path) === resolveCanonicalPath(rawPath)) {
+          pending = true;
+          update({ saving: false, dirty: true, localSaved: true, error: err.message });
+        } else {
+          update({ saving: false });
+          notify(`Could not save "${rawPath}": ${err.message}`, "error");
         }
       },
     );
@@ -347,6 +434,25 @@ export const saveNow = () => save();
 
 export function flush() {
   return pending ? save() : saving;
+}
+
+export async function flushAll() {
+  await flushNavQueue();
+  await flush();
+}
+
+export async function syncPendingLocal(scope: string) {
+  const dirty = await listDirtyPages(scope);
+  if (!dirty.length) return;
+  await flushNavQueue();
+  for (const row of dirty) {
+    const targetPath = resolveCanonicalPath(row.path);
+    if (current && resolveCanonicalPath(current.path) === targetPath) continue;
+    try {
+      await api.savePage(targetPath, row.html);
+      await writeLocalPage(scope, targetPath, row.html, false);
+    } catch {}
+  }
 }
 
 export function setAutosave(on: boolean) {

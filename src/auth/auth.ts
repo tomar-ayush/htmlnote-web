@@ -1,5 +1,5 @@
 import { authApi, onUnauthorized, type User } from "../api/api";
-import { clearPageCache, flush, openPage } from "../editor/editor";
+import { clearPageCache, flushAll, openPage } from "../editor/editor";
 import { createStore } from "../store/store";
 
 export const userStore = createStore<User | null | undefined>(undefined);
@@ -32,7 +32,7 @@ export async function verifySignupOtp(email: string, code: string) {
 }
 
 export async function signOut() {
-  await flush();
+  await flushAll();
   await openPage(null);
   clearPageCache();
   await authApi.logout();

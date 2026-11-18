@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AuthScreen } from "./auth/AuthScreen";
 import { loadUser, userStore } from "./auth/auth";
-import { DialogHost } from "./dialog/dialog";
+import { DialogHost, notify } from "./dialog/dialog";
 import { attachFrame, editorStore, focusDoc } from "./editor/editor";
 import { FindPanel } from "./find/FindPanel";
 import { findStore } from "./find/find";
@@ -12,11 +12,13 @@ import { ShareModal } from "./share/ShareModal";
 import { openShare } from "./share/share";
 import { StorageModal, StorageSetup } from "./storage/StorageModal";
 import { loadStorage, resetStorage, storageStore } from "./storage/storage";
+import { setSyncScope } from "./sync/localdb";
 import { Icon } from "./ui/icons";
 
 function Workspace() {
   const { path } = editorStore.use();
   const findOpen = findStore.use();
+  const user = userStore.use();
   const { config, revision } = storageStore.use();
   const pageTitle = path ? (path.split("/").pop() ?? "").replace(/\.html?$/i, "") : "";
   const [titleDraft, setTitleDraft] = useState(pageTitle);
@@ -27,6 +29,25 @@ function Workspace() {
   }, [pageTitle]);
 
   useEffect(() => {
+    const scopeKey =
+      config?.mode === "gdrive"
+        ? `gdrive:${config.driveEmail || "default"}`
+        : `${config?.mode ?? "none"}:${config?.bucket || ""}`;
+    setSyncScope(`${user?.id ?? "anon"}:${scopeKey}`);
+  }, [user?.id, config?.mode, config?.driveEmail, config?.bucket]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const driveOk = params.get("drive");
+    const driveErr = params.get("drive_error");
+    if (driveOk === "connected") {
+      notify("Google Drive connected. Notes now sync to your HTML Notebook folder.");
+    } else if (driveErr) {
+      notify(driveErr, "error");
+    }
+    if (driveOk || driveErr) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     resetStorage();
     void loadStorage();
   }, []);

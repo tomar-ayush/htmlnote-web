@@ -386,16 +386,19 @@ input {
   border: 0;
   border-radius: 7px 7px 0 0;
   background: transparent;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 13px;
+  font-weight: 500;
+  transition: background 150ms var(--ease-out), color 150ms var(--ease-out);
 }
 
-.toolbar .ribbon-tabs button:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+.toolbar .ribbon-tabs button:hover:not(:disabled) {
+  background: #f3e8fa;
+  color: var(--bar);
 }
 
-.toolbar .ribbon-tabs button[aria-selected="true"] {
+.toolbar .ribbon-tabs button[aria-selected="true"],
+.toolbar .ribbon-tabs button[aria-selected="true"]:hover:not(:disabled) {
   background: #fafbfc;
   color: var(--bar);
   font-weight: 600;
@@ -1011,15 +1014,135 @@ input {
 
 .storage-backdrop {
   z-index: 40;
-  padding-top: 6vh;
+  padding: 4vh 16px;
+  overflow-y: auto;
 }
 
 .storage-screen {
   flex: 1;
   display: grid;
   place-items: start center;
-  padding: 7vh 16px 24px;
+  padding: 5vh 16px 32px;
   overflow-y: auto;
+}
+
+.drive-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--chrome);
+  transition: border-color 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+
+.drive-panel.active {
+  border-color: #d9bfe9;
+  background: #faf5fd;
+}
+
+.drive-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.drive-panel-head .hint {
+  margin: 0;
+}
+
+.drive-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.drive-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e9ecf1;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.drive-badge.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.drive-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.drive-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+
+.drive-btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.drive-btn:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.drive-btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.drive-btn.primary:hover:not(:disabled) {
+  filter: brightness(0.95);
+  background: var(--accent);
+}
+
+.drive-btn.danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.drive-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.storage-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.storage-section-divider::before,
+.storage-section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 
 .storage-card,

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { shareApi, type ShareInfo } from "../api/api";
 import { notify } from "../dialog/dialog";
-import { flush } from "../editor/editor";
+import { flushAll } from "../editor/editor";
+import { resolveCanonicalPath } from "../sync/localdb";
 import { Icon } from "../ui/icons";
 import { closeShare, shareStore } from "./share";
 
@@ -19,8 +20,7 @@ export function ShareModal() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [expiry, setExpiry] = useState("");
-  const [presigned, setPresigned] = useState("");
-  const [copied, setCopied] = useState<"" | "link" | "presign">("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!path) return;
@@ -36,21 +36,21 @@ export function ShareModal() {
     let active = true;
     setLoading(true);
     setInfo(null);
-    setPresigned("");
-    setCopied("");
+    setCopied(false);
     setExpiry("");
-    shareApi.get(path).then(
-      (res) => {
+    void (async () => {
+      try {
+        await flushAll();
+        const res = await shareApi.get(resolveCanonicalPath(path));
         if (!active) return;
         setInfo(res);
-        setLoading(false);
-      },
-      (err: Error) => {
+      } catch (err) {
         if (!active) return;
-        setLoading(false);
-        notify(err.message, "error");
-      },
-    );
+        notify((err as Error).message, "error");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => {
       active = false;
     };
@@ -58,15 +58,16 @@ export function ShareModal() {
 
   if (!path) return null;
 
-  const title = path.split("/").pop()?.replace(/\.html?$/i, "") || path;
+  const targetPath = resolveCanonicalPath(path);
+  const title = targetPath.split("/").pop()?.replace(/\.html?$/i, "") || targetPath;
   const fullUrl = info?.shared && info.url ? `${window.location.origin}${info.url}` : "";
   const expiryHours = expiry ? Number(expiry) : null;
 
-  const copyText = async (text: string, which: "link" | "presign") => {
+  const copyLink = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(which);
-      setTimeout(() => setCopied((cur) => (cur === which ? "" : cur)), 2000);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       notify("Copy failed; select the URL field to copy manually.", "error");
     }
@@ -75,10 +76,10 @@ export function ShareModal() {
   const createOrUpdate = async () => {
     setBusy(true);
     try {
-      await flush();
-      const res = await shareApi.create(path, expiryHours);
+      await flushAll();
+      const res = await shareApi.create(resolveCanonicalPath(path), expiryHours);
       setInfo(res);
-      if (res.url) await copyText(`${window.location.origin}${res.url}`, "link");
+      if (res.url) await copyLink(`${window.location.origin}${res.url}`);
     } catch (err) {
       notify((err as Error).message, "error");
     } finally {
@@ -89,23 +90,9 @@ export function ShareModal() {
   const revoke = async () => {
     setBusy(true);
     try {
-      const res = await shareApi.revoke(path);
+      await flushAll();
+      const res = await shareApi.revoke(resolveCanonicalPath(path));
       setInfo(res);
-    } catch (err) {
-      notify((err as Error).message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const makePresigned = async () => {
-    setBusy(true);
-    try {
-      await flush();
-      const hours = expiryHours ? Math.min(168, Math.max(1, expiryHours)) : 24;
-      const res = await shareApi.presign(path, hours);
-      setPresigned(res.url);
-      await copyText(res.url, "presign");
     } catch (err) {
       notify((err as Error).message, "error");
     } finally {
@@ -153,9 +140,9 @@ export function ShareModal() {
                   aria-label="Share URL"
                   onFocus={(e) => e.target.select()}
                 />
-                <button type="button" onClick={() => void copyText(fullUrl, "link")}>
-                  <Icon name={copied === "link" ? "check" : "copy"} />
-                  <span>{copied === "link" ? "Copied" : "Copy"}</span>
+                <button type="button" onClick={() => void copyLink(fullUrl)}>
+                  <Icon name={copied ? "check" : "copy"} />
+                  <span>{copied ? "Copied" : "Copy"}</span>
                 </button>
                 <a className="btn share-open-btn" href={fullUrl} target="_blank" rel="noopener" title="Open in new tab">
                   <Icon name="external" />
@@ -178,34 +165,6 @@ export function ShareModal() {
               </button>
             </div>
           )}
-        </section>
-
-        <section className="share-section">
-          <div className="share-section-head">
-            <strong>S3 presigned URL</strong>
-            <span className="hint">Direct storage read link (1h–7d)</span>
-          </div>
-          {presigned && (
-            <div className="share-url-row">
-              <input
-                type="text"
-                readOnly
-                value={presigned}
-                aria-label="Presigned S3 URL"
-                onFocus={(e) => e.target.select()}
-              />
-              <button type="button" onClick={() => void copyText(presigned, "presign")}>
-                <Icon name={copied === "presign" ? "check" : "copy"} />
-                <span>{copied === "presign" ? "Copied" : "Copy"}</span>
-              </button>
-            </div>
-          )}
-          <div className="share-inline-actions">
-            <button type="button" disabled={busy} onClick={() => void makePresigned()}>
-              <Icon name="link" />
-              <span>Copy 24h S3 presigned URL</span>
-            </button>
-          </div>
         </section>
 
         <div className="dialog-actions">

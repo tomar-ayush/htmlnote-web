@@ -14,7 +14,7 @@ function ago(ms: number) {
 }
 
 export function SaveStatus() {
-  const { path, autosave, dirty, saving, savedAt, error } = editorStore.use();
+  const { path, autosave, dirty, localSaved, saving, savedAt, error } = editorStore.use();
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -26,14 +26,20 @@ export function SaveStatus() {
   if (!path) return null;
   const tone = error ? "error" : saving || dirty ? "dirty" : savedAt ? "saved" : "idle";
   const text = error
-    ? `Not saved: ${error}`
+    ? `Not synced: ${error}`
     : saving
-      ? "Saving…"
+      ? "Syncing…"
       : dirty
-        ? autosave ? "Saving soon…" : "Unsaved changes"
+        ? autosave
+          ? localSaved
+            ? "Saved locally · syncing…"
+            : "Saving locally…"
+          : localSaved
+            ? "Saved locally (sync off)"
+            : "Unsaved changes"
         : savedAt
-          ? `Saved ${ago(now - savedAt)}`
-          : "All changes saved";
+          ? `Synced ${ago(now - savedAt)}`
+          : "All changes synced";
 
   return (
     <div className="save">
@@ -61,15 +67,20 @@ export function Header() {
   const page = parts.pop();
 
   let storageLabel = "Storage";
-  let storageTitle = "Configure object storage";
-  if (config?.mode === "custom") {
+  let storageTitle = "Configure storage";
+  let storageIcon: "storage" | "drive" = "storage";
+  if (config?.mode === "gdrive") {
+    storageIcon = "drive";
+    storageLabel = config.driveEmail ? `Drive: ${config.driveEmail}` : "Google Drive";
+    storageTitle = `Syncing to Google Drive (${config.driveFolderName || "HTML Notebook"}) — click to switch or manage storage`;
+  } else if (config?.mode === "custom") {
     storageLabel = `Storage: ${config.bucket}`;
     storageTitle = `Custom bucket: ${config.bucket}`;
   } else if (config?.mode === "managed") {
     const mb = ((config.usedBytes ?? 0) / (1024 * 1024)).toFixed(1);
     const cap = Math.max(1, Math.round((config.quotaBytes ?? 50 * 1024 * 1024) / (1024 * 1024)));
     storageLabel = `Storage: ${mb} / ${cap} MB`;
-    storageTitle = "Free managed R2 storage — click to view usage or connect your own bucket";
+    storageTitle = "Free managed R2 storage — click to view usage, connect Google Drive, or add your own bucket";
   }
 
   return (
@@ -87,7 +98,7 @@ export function Header() {
       <div className="account">
         {user?.email && <span className="account-email" title={user.email}>{user.email}</span>}
         <button type="button" className="header-btn" onClick={openStorage} title={storageTitle}>
-          <Icon name="storage" size={14} />
+          <Icon name={storageIcon} size={14} />
           {storageLabel}
         </button>
         <button

@@ -315,6 +315,13 @@ const PATHS = {
     </>
   ),
   check: <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />,
+  drive: (
+    <>
+      <path d="M6 2.5h4l4 7h-4z" />
+      <path d="M2 9.5 6 2.5l2 3.5L4 13z" />
+      <path d="M4 13h8l2-3.5H6z" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;
