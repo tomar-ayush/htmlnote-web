@@ -1,6 +1,5 @@
 # HTMLNote Web
 
-[![CI/CD](https://github.com/tomar-ayush/htmlnote-web/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/tomar-ayush/htmlnote-web/actions/workflows/ci-cd.yml)
 ![React 19](https://img.shields.io/badge/React-19.3-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?logo=vite&logoColor=white)
@@ -58,17 +57,7 @@ src/
 
 Because the HTMLNote editor reads `iframe.contentDocument` directly and relies on `__Host-` session and CSRF cookies, the frontend and backend must share an origin in the browser.
 
-`vercel.json` uses Vercel Edge Rewrites to proxy `/api/*`, `/page/*`, and `/view/*` seamlessly to your Cloud Run URL while serving the static Vite SPA for everything else:
-
-```json
-{
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "https://YOUR_CLOUD_RUN_URL/api/:path*" },
-    { "source": "/page/:path*", "destination": "https://YOUR_CLOUD_RUN_URL/page/:path*" },
-    { "source": "/view/:path*", "destination": "https://YOUR_CLOUD_RUN_URL/view/:path*" }
-  ]
-}
-```
+During Vercel builds, [`build-vercel.mjs`](build-vercel.mjs) emits Vercel's **Build Output API v3** manifest (`.vercel/output/config.json`) using the `BACKEND_URL` environment variable configured in Vercel so `/api/*`, `/page/*`, and `/view/*` proxy transparently to Cloud Run while static assets and SPA routes resolve directly on Vercel Edge.
 
 ---
 
@@ -83,7 +72,7 @@ npm run dev
 
 `vite.config.ts` proxies `/api`, `/page`, and `/view` to `http://127.0.0.1:8000` automatically.
 
-Type-check and build production assets:
+Type-check and build production assets locally:
 
 ```bash
 npm run typecheck
@@ -92,26 +81,14 @@ npm run build
 
 ---
 
-## Deploying to Vercel
+## Deploying to Vercel (Git Integration)
 
-### Option 1 — Automated GitHub Actions (`.github/workflows/ci-cd.yml`)
+1. Import **`tomar-ayush/htmlnote-web`** into Vercel (Vercel reads `vercel.json` automatically).
+2. Under **Project Settings -> Environment Variables**, add:
 
-Every push or PR runs `npm run typecheck` and `npm run build`. Pushes to `main` automatically inject `BACKEND_URL` into `vercel.json` and deploy to Vercel production once configured.
+| Name | Value |
+|---|---|
+| `BACKEND_URL` | Your deployed Cloud Run URL (e.g. `https://htmlnote-api-xyz.a.run.app`) |
 
-Add these under **GitHub Repository -> Settings -> Secrets and variables -> Actions**:
-
-| Name | Type | Description |
-|---|---|---|
-| `VERCEL_TOKEN` | Secret | Personal token from [vercel.com/account/tokens](https://vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | Secret or Variable | Team / Personal Account ID from `.vercel/project.json` or Vercel Settings |
-| `VERCEL_PROJECT_ID` | Secret or Variable | Project ID from Vercel Project Settings |
-| `BACKEND_URL` | Secret or Variable | Deployed Cloud Run URL (e.g. `https://htmlnote-api-xyz.a.run.app`) |
-
-### Option 2 — Vercel Git Integration
-
-1. Replace `https://YOUR_CLOUD_RUN_URL` in `vercel.json` with your Cloud Run URL.
-2. Import **`tomar-ayush/htmlnote-web`** into Vercel (Framework Preset: **Vite**, Build Command: `npm run build`, Output Directory: `dist`).
-
-### Required Backend Setting
-
-After your Vercel domain is live (e.g. `https://htmlnote-web.vercel.app`), set `ALLOWED_ORIGINS` on your **Cloud Run** service (`htmlnote-api`) to include your Vercel origin(s) so CSRF/Origin validation permits requests through Vercel rewrites.
+3. Deploy. Every push to `main` builds with Vercel's native CI and wires `/api/*`, `/page/*`, and `/view/*` directly to `BACKEND_URL`.
+4. After your Vercel domain is live (e.g. `https://htmlnote-web.vercel.app`), set `ALLOWED_ORIGINS` on your **Cloud Run** service (`htmlnote-api`) to include your Vercel origin(s) so CSRF/Origin validation permits proxied write requests.

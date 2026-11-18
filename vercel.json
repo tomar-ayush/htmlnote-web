@@ -1,16 +1,5 @@
 {
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://YOUR_CLOUD_RUN_URL/api/:path*"
-    },
-    {
-      "source": "/page/:path*",
-      "destination": "https://YOUR_CLOUD_RUN_URL/page/:path*"
-    },
-    {
-      "source": "/view/:path*",
-      "destination": "https://YOUR_CLOUD_RUN_URL/view/:path*"
-    }
-  ]
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": ".vercel/output"
 }
