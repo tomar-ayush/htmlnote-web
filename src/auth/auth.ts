@@ -1,10 +1,13 @@
 import { authApi, onUnauthorized, type User } from "../api/api";
-import { flush, openPage } from "../editor/editor";
+import { clearPageCache, flush, openPage } from "../editor/editor";
 import { createStore } from "../store/store";
 
 export const userStore = createStore<User | null | undefined>(undefined);
 
-onUnauthorized(() => userStore.set(null));
+onUnauthorized(() => {
+  clearPageCache();
+  userStore.set(null);
+});
 
 export async function loadUser() {
   try {
@@ -14,14 +17,24 @@ export async function loadUser() {
   }
 }
 
-export async function signIn(mode: "login" | "signup", email: string, password: string) {
-  const { user } = await (mode === "login" ? authApi.login(email, password) : authApi.signup(email, password));
+export async function loginUser(email: string, password: string) {
+  const { user } = await authApi.login(email, password);
+  userStore.set(user);
+}
+
+export async function requestSignupOtp(email: string, password: string) {
+  return authApi.signup(email, password);
+}
+
+export async function verifySignupOtp(email: string, code: string) {
+  const { user } = await authApi.verifySignup(email, code);
   userStore.set(user);
 }
 
 export async function signOut() {
   await flush();
   await openPage(null);
+  clearPageCache();
   await authApi.logout();
   userStore.set(null);
 }

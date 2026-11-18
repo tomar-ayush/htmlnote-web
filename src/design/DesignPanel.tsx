@@ -133,6 +133,7 @@ export function DesignPanel() {
           <label>
             CSS
             <NativeInput
+              className="css-input"
               value=""
               placeholder="prop: value;"
               disabled={!selected}

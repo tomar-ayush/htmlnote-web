@@ -50,7 +50,10 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
 export const authApi = {
   me: () => call<{ user: User | null }>("GET", "/api/auth/me"),
   login: (email: string, password: string) => call<{ user: User }>("POST", "/api/auth/login", { email, password }),
-  signup: (email: string, password: string) => call<{ user: User }>("POST", "/api/auth/signup", { email, password }),
+  signup: (email: string, password: string) =>
+    call<{ otpRequired: boolean; email: string }>("POST", "/api/auth/signup", { email, password }),
+  verifySignup: (email: string, code: string) =>
+    call<{ user: User }>("POST", "/api/auth/verify-signup", { email, code }),
   logout: () => call<{ user: null }>("POST", "/api/auth/logout", {}),
 };
 
@@ -67,6 +70,12 @@ export const api = {
   remove: (path: string) => call<{ removed: boolean }>("DELETE", `/api/item?path=${q(path)}`),
   versions: (path: string) => call<Version[]>("GET", `/api/versions?path=${q(path)}`),
   version: (path: string, id: string) => call<{ html: string }>("GET", `/api/version?path=${q(path)}&id=${q(id)}`),
+  readPage: async (path: string) => {
+    const res = await fetch(pageUrl("page", path), { credentials: "same-origin" });
+    if (res.status === 401) unauthorizedHandlers.forEach((fn) => fn());
+    if (!res.ok) throw new Error("Failed to load page");
+    return res.text();
+  },
 };
 
 export const storageApi = {

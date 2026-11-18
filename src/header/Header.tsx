@@ -17,9 +17,10 @@ function SaveStatus() {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    if (!savedAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 5000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [savedAt]);
 
   if (!path) return null;
   const text = error
@@ -36,7 +37,7 @@ function SaveStatus() {
     <div className="save">
       <span className={`save-text${error ? " error" : dirty ? " dirty" : ""}`} aria-live="polite">{text}</span>
       {(!autosave || error) && (
-        <button type="button" className="header-btn primary" disabled={!dirty || saving} onClick={() => void saveNow()} title="Save (Ctrl+S)">
+        <button type="button" className="header-btn compact primary" disabled={!dirty || saving} onClick={() => void saveNow()} title="Save (Ctrl+S)">
           Save
         </button>
       )}
@@ -68,24 +69,26 @@ export function Header() {
         ))}
         {page && <span className="crumb current">{page}</span>}
       </nav>
-      <SaveStatus />
-      <div className="account">
-        <span className="account-email" title={user?.email}>{user?.email}</span>
-        <button
-          type="button"
-          className="header-btn"
-          onClick={openStorage}
-          title={config?.configured ? `Bucket: ${config.bucket}` : "Configure object storage"}
-        >
-          {config?.configured ? `Storage: ${config.bucket}` : "Storage"}
-        </button>
-        <button
-          type="button"
-          className="header-btn"
-          onClick={() => signOut().catch((err: Error) => notify(err.message, "error"))}
-        >
-          Sign out
-        </button>
+      <div className="header-right">
+        <div className="account">
+          <span className="account-email" title={user?.email}>{user?.email}</span>
+          <button
+            type="button"
+            className="header-btn"
+            onClick={openStorage}
+            title={config?.configured ? `Bucket: ${config.bucket}` : "Configure object storage"}
+          >
+            {config?.configured ? `Storage: ${config.bucket}` : "Storage"}
+          </button>
+          <button
+            type="button"
+            className="header-btn"
+            onClick={() => signOut().catch((err: Error) => notify(err.message, "error"))}
+          >
+            Sign out
+          </button>
+        </div>
+        <SaveStatus />
       </div>
     </header>
   );

@@ -2,16 +2,28 @@ import { useEffect, useState } from "react";
 import { api, pageUrl, type Version } from "../api/api";
 import { confirmAction, notify } from "../dialog/dialog";
 import { editorStore, flush, openPage } from "../editor/editor";
-import { Group } from "../ui/ui";
+import { Btn, Group } from "../ui/ui";
 
 export function HistoryPanel() {
   const { path, savedAt } = editorStore.use();
   const [versions, setVersions] = useState<Version[] | null>(null);
+  const [selectedId, setSelectedId] = useState("");
 
   useEffect(() => {
     setVersions(null);
-    if (path) api.versions(path).then(setVersions, (err: Error) => notify(err.message, "error"));
+    setSelectedId("");
+    if (path) {
+      api.versions(path).then(
+        (list) => {
+          setVersions(list);
+          setSelectedId(list[0]?.id ?? "");
+        },
+        (err: Error) => notify(err.message, "error"),
+      );
+    }
   }, [path, savedAt]);
+
+  const selectedVersion = versions?.find((v) => v.id === selectedId) ?? versions?.[0] ?? null;
 
   const restore = async (v: Version) => {
     if (!path) return;
@@ -21,7 +33,7 @@ export function HistoryPanel() {
       await flush();
       const { html } = await api.version(path, v.id);
       await api.savePage(path, html, true);
-      await openPage(path);
+      await openPage(path, true);
       notify(`Restored the version from ${when}.`);
     } catch (err) {
       notify((err as Error).message, "error");
@@ -41,19 +53,29 @@ export function HistoryPanel() {
         )}
       </Group>
       <Group label="Versions (last 10)">
+        {!path && <span className="hint">No page open.</span>}
         {path && versions === null && <span className="hint">Loading…</span>}
         {versions?.length === 0 && (
-          <span className="hint">No earlier versions yet. A copy is kept when the page changes, at most every 5 minutes.</span>
+          <span className="hint">No earlier versions yet (snapshots save every 5 min).</span>
         )}
-        <ul className="versions">
-          {versions?.map((v) => (
-            <li key={v.id}>
-              <span>{new Date(v.savedAt).toLocaleString()}</span>
-              <span className="hint">{Math.ceil(v.size / 1024)} KB</span>
-              <button type="button" onClick={() => void restore(v)}>Restore</button>
-            </li>
-          ))}
-        </ul>
+        {versions && versions.length > 0 && (
+          <>
+            <select
+              title="Saved versions"
+              value={selectedVersion?.id ?? ""}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {new Date(v.savedAt).toLocaleString()} ({Math.ceil(v.size / 1024)} KB)
+                </option>
+              ))}
+            </select>
+            <Btn disabled={!selectedVersion} onClick={() => selectedVersion && void restore(selectedVersion)}>
+              Restore
+            </Btn>
+          </>
+        )}
       </Group>
     </>
   );

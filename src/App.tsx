@@ -49,7 +49,7 @@ function Workspace() {
       <main className="workspace">
         <Navigation key={revision} />
         <section className="canvas" aria-label="Page">
-          <iframe ref={attachFrame} title="Page content" />
+          <iframe ref={attachFrame} sandbox="allow-same-origin" title="Page content" />
           {!path && (
             <div className="empty">
               <p>Pick a page on the left, add a new one, or import .html files.</p>

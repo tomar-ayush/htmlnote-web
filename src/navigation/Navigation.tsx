@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import { api, type Notebook, type Section } from "../api/api";
 import { confirmAction, notify } from "../dialog/dialog";
-import { editorStore, escapeHtml, flush, openPage } from "../editor/editor";
+import {
+  editorStore,
+  escapeHtml,
+  flush,
+  moveCachedPrefix,
+  openPage,
+  prefetchPage,
+  removeCachedPrefix,
+  repathOpenPage,
+  setCachedPage,
+} from "../editor/editor";
 
 const COLORS = ["#1f5f7a", "#b5482b", "#2f7d4f", "#7a4fb0", "#b07d12", "#3a6fd8", "#a33d6b", "#4c6a6e"];
 const LAST_KEY = "htmlnote:last";
 const PAGE_FILE = /\.html?$/i;
+const BAD_CHARS = /[/\\:*?"<>|\x00-\x1f]/g;
 
 function remember(path: string | null) {
   try {
@@ -40,9 +51,103 @@ function blankPage(title: string) {
 
 const within = (path: string | null, root: string) => !!path && (path === root || path.startsWith(`${root}/`));
 
+const cleanLocalName = (name: string) => name.replace(BAD_CHARS, "").trim();
+
+function uniqueFolderName(existing: string[], base: string) {
+  const taken = new Set(existing);
+  let candidate = base;
+  let i = 2;
+  while (taken.has(candidate)) {
+    candidate = `${base} ${i}`;
+    i += 1;
+  }
+  return candidate;
+}
+
+function uniquePageFile(existingNames: string[], baseRaw: string) {
+  const base = cleanLocalName(baseRaw.replace(PAGE_FILE, "")) || "Untitled page";
+  const taken = new Set(existingNames.map((n) => n.toLowerCase()));
+  let i = 1;
+  while (true) {
+    const stem = i === 1 ? base : `${base} (${i})`;
+    if (!taken.has(stem.toLowerCase())) return { stem, file: `${stem}.html` };
+    i += 1;
+  }
+}
+
 function findSection(notebooks: Notebook[], path: string | null): Section | null {
   for (const nb of notebooks) for (const s of nb.sections) if (s.path === path) return s;
   return null;
+}
+
+function swapPrefix(value: string | null, oldPrefix: string, newPrefix: string) {
+  return value && within(value, oldPrefix) ? newPrefix + value.slice(oldPrefix.length) : value;
+}
+
+function renameInTree(tree: Notebook[], oldPath: string, newPath: string, newName: string): Notebook[] {
+  const depth = oldPath.split("/").length;
+  return tree.map((nb) => {
+    if (depth === 1 && nb.path === oldPath) {
+      return {
+        name: newName,
+        path: newPath,
+        sections: nb.sections.map((s) => ({
+          name: s.name,
+          path: newPath + s.path.slice(oldPath.length),
+          pages: s.pages.map((p) => ({ name: p.name, path: newPath + p.path.slice(oldPath.length) })),
+        })),
+      };
+    }
+    if (depth === 2 && within(oldPath, nb.path)) {
+      return {
+        ...nb,
+        sections: nb.sections.map((s) =>
+          s.path === oldPath
+            ? {
+                name: newName,
+                path: newPath,
+                pages: s.pages.map((p) => ({ name: p.name, path: newPath + p.path.slice(oldPath.length) })),
+              }
+            : s,
+        ),
+      };
+    }
+    if (depth === 3 && within(oldPath, nb.path)) {
+      const display = newName.replace(PAGE_FILE, "");
+      return {
+        ...nb,
+        sections: nb.sections.map((s) =>
+          within(oldPath, s.path)
+            ? {
+                ...s,
+                pages: s.pages.map((p) => (p.path === oldPath ? { name: display, path: newPath } : p)),
+              }
+            : s,
+        ),
+      };
+    }
+    return nb;
+  });
+}
+
+function removeFromTree(tree: Notebook[], targetPath: string): Notebook[] {
+  const depth = targetPath.split("/").length;
+  if (depth === 1) return tree.filter((nb) => nb.path !== targetPath);
+  if (depth === 2) {
+    return tree.map((nb) =>
+      within(targetPath, nb.path) ? { ...nb, sections: nb.sections.filter((s) => s.path !== targetPath) } : nb,
+    );
+  }
+  return tree.map((nb) =>
+    within(targetPath, nb.path)
+      ? {
+          ...nb,
+          sections: nb.sections.map((s) =>
+            within(targetPath, s.path) ? { ...s, pages: s.pages.filter((p) => p.path !== targetPath) } : s,
+          ),
+        }
+      : nb,
+  );
 }
 
 function Tool({ title, onClick, children }: { title: string; onClick: () => void; children: ReactNode }) {
@@ -98,6 +203,18 @@ export function Navigation() {
   const [editing, setEditing] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
+  const queueRef = useRef(Promise.resolve());
+  const aliasRef = useRef(new Map<string, string>());
+
+  const resolvePath = (local: string) => {
+    let cur = local;
+    for (let i = 0; i < 6; i += 1) {
+      const next = aliasRef.current.get(cur);
+      if (!next || next === cur) break;
+      cur = next;
+    }
+    return cur;
+  };
 
   const load = useCallback(async () => {
     const tree = await api.tree();
@@ -120,6 +237,22 @@ export function Navigation() {
     [selectPage],
   );
 
+  const enqueue = useCallback(
+    (task: () => Promise<void>, rollback?: () => void) => {
+      const run = async () => {
+        try {
+          await task();
+        } catch (err) {
+          rollback?.();
+          notify((err as Error).message, "error");
+          void load();
+        }
+      };
+      queueRef.current = queueRef.current.then(run, run);
+    },
+    [load],
+  );
+
   useEffect(() => {
     load()
       .then((tree) => {
@@ -134,69 +267,200 @@ export function Navigation() {
       .catch((err: Error) => notify(`Cannot reach the server: ${err.message}`, "error"));
   }, [load, selectPage, selectSection]);
 
-  const addNotebook = guard(async () => {
-    const nb = await api.createFolder("", "Untitled notebook");
-    const section = await api.createFolder(nb.path, "Untitled section");
-    selectSection(await load(), section.path);
-    setEditing(nb.path);
-  });
+  useEffect(() => {
+    const sec = findSection(notebooks, sectionPath);
+    sec?.pages.slice(0, 5).forEach((p) => void prefetchPage(p.path));
+  }, [notebooks, sectionPath]);
 
-  const addSection = (notebook: string) =>
-    guard(async () => {
-      const section = await api.createFolder(notebook, "Untitled section");
-      const next = new Set(collapsed);
-      next.delete(notebook);
-      setCollapsed(next);
-      selectSection(await load(), section.path);
-      setEditing(section.path);
-    })();
+  const reconcilePath = (localPath: string, serverPath: string) => {
+    if (localPath === serverPath) return;
+    aliasRef.current.set(localPath, serverPath);
+    const nextName = serverPath.split("/").pop() ?? serverPath;
+    setNotebooks((prev) => renameInTree(prev, localPath, serverPath, nextName));
+    setSectionPath((prev) => swapPrefix(prev, localPath, serverPath));
+    setEditing((prev) => swapPrefix(prev, localPath, serverPath));
+    moveCachedPrefix(localPath, serverPath);
+    repathOpenPage(localPath, serverPath);
+  };
 
-  const addPage = guard(async () => {
-    if (!sectionPath) return;
-    const page = await api.createPage(sectionPath, "Untitled page", blankPage("Untitled page"));
-    await load();
-    await selectPage(page.path);
-    setEditing(page.path);
-  });
+  const addNotebook = () => {
+    const prevTree = notebooks;
+    const prevSec = sectionPath;
+    const nbName = uniqueFolderName(notebooks.map((n) => n.name), "Untitled notebook");
+    const secPath = `${nbName}/Untitled section`;
+    const nextTree = [...notebooks, { name: nbName, path: nbName, sections: [{ name: "Untitled section", path: secPath, pages: [] }] }];
+    setNotebooks(nextTree);
+    selectSection(nextTree, secPath);
+    setEditing(nbName);
+    enqueue(
+      async () => {
+        const nb = await api.createFolder("", "Untitled notebook");
+        reconcilePath(nbName, nb.path);
+        const sec = await api.createFolder(nb.path, "Untitled section");
+        reconcilePath(`${nb.path}/Untitled section`, sec.path);
+      },
+      () => {
+        setNotebooks(prevTree);
+        setSectionPath(prevSec);
+      },
+    );
+  };
+
+  const addSection = (notebook: string) => {
+    const nb = notebooks.find((n) => n.path === notebook);
+    if (!nb) return;
+    const prevTree = notebooks;
+    const prevSec = sectionPath;
+    const secName = uniqueFolderName(nb.sections.map((s) => s.name), "Untitled section");
+    const secPath = `${notebook}/${secName}`;
+    const nextTree = notebooks.map((n) =>
+      n.path === notebook ? { ...n, sections: [...n.sections, { name: secName, path: secPath, pages: [] }] } : n,
+    );
+    const nextCollapsed = new Set(collapsed);
+    nextCollapsed.delete(notebook);
+    setCollapsed(nextCollapsed);
+    setNotebooks(nextTree);
+    selectSection(nextTree, secPath);
+    setEditing(secPath);
+    enqueue(
+      async () => {
+        const sec = await api.createFolder(resolvePath(notebook), "Untitled section");
+        reconcilePath(secPath, sec.path);
+      },
+      () => {
+        setNotebooks(prevTree);
+        setSectionPath(prevSec);
+      },
+    );
+  };
+
+  const addPage = () => {
+    const section = findSection(notebooks, sectionPath);
+    if (!section) return;
+    const prevTree = notebooks;
+    const { stem, file } = uniquePageFile(section.pages.map((p) => p.name), "Untitled page");
+    const newPath = `${section.path}/${file}`;
+    const html = blankPage(stem);
+    setCachedPage(newPath, html);
+    const nextTree = notebooks.map((nb) => ({
+      ...nb,
+      sections: nb.sections.map((s) =>
+        s.path === section.path ? { ...s, pages: [...s.pages, { name: stem, path: newPath }] } : s,
+      ),
+    }));
+    setNotebooks(nextTree);
+    void selectPage(newPath);
+    setEditing(newPath);
+    enqueue(
+      async () => {
+        const page = await api.createPage(resolvePath(section.path), "Untitled page", html);
+        reconcilePath(newPath, page.path);
+      },
+      () => {
+        removeCachedPrefix(newPath);
+        setNotebooks(prevTree);
+      },
+    );
+  };
 
   const importFiles = async (files: File[]) => {
     const section = findSection(notebooks, sectionPath);
     if (!section) return;
     const pages = files.filter((f) => PAGE_FILE.test(f.name));
     if (!pages.length) return notify("Only .html and .htm files can be imported.", "error");
-    let last: string | null = null;
-    for (const file of pages) {
-      last = (await api.createPage(section.path, file.name.replace(PAGE_FILE, ""), await file.text())).path;
+    const entries = await Promise.all(
+      pages.map(async (file) => ({ rawName: file.name.replace(PAGE_FILE, ""), html: await file.text() })),
+    );
+    const prevTree = notebooks;
+    const taken = section.pages.map((p) => p.name);
+    const created: { stem: string; path: string; rawName: string; html: string }[] = [];
+    for (const entry of entries) {
+      const { stem, file } = uniquePageFile(taken, entry.rawName);
+      taken.push(stem);
+      const localPath = `${section.path}/${file}`;
+      setCachedPage(localPath, entry.html);
+      created.push({ stem, path: localPath, rawName: entry.rawName, html: entry.html });
     }
-    await load();
-    if (last) await selectPage(last);
+    const nextTree = notebooks.map((nb) => ({
+      ...nb,
+      sections: nb.sections.map((s) =>
+        s.path === section.path
+          ? { ...s, pages: [...s.pages, ...created.map((c) => ({ name: c.stem, path: c.path }))] }
+          : s,
+      ),
+    }));
+    setNotebooks(nextTree);
+    const last = created[created.length - 1];
+    if (last) void selectPage(last.path);
     const count = pages.length === 1 ? `"${pages[0].name}"` : `${pages.length} pages`;
     notify(`Copied ${count} into ${section.name}. Your original files are not changed.`);
+    enqueue(
+      async () => {
+        const targetSec = resolvePath(section.path);
+        for (const item of created) {
+          const res = await api.createPage(targetSec, item.rawName, item.html);
+          reconcilePath(item.path, res.path);
+        }
+      },
+      () => {
+        created.forEach((c) => removeCachedPrefix(c.path));
+        setNotebooks(prevTree);
+      },
+    );
   };
 
   const finishRename = (path: string, oldName: string, name: string | null) => {
     setEditing(null);
-    const clean = name?.trim();
+    const clean = cleanLocalName(name ?? "");
     if (!clean || clean === oldName) return;
-    guard(async () => {
-      await flush();
-      const { path: renamed } = await api.rename(path, clean);
-      const swap = (p: string | null) => (p && within(p, path) ? renamed + p.slice(path.length) : p);
-      setSectionPath(swap(sectionPath));
-      await load();
-      if (within(pagePath, path)) await selectPage(swap(pagePath));
-    })();
+    const parts = path.split("/");
+    const isPage = parts.length === 3;
+    const cleanLeaf = isPage ? `${clean.replace(PAGE_FILE, "")}.html` : clean;
+    if (!cleanLeaf || cleanLeaf === ".html") return;
+    const localTarget = [...parts.slice(0, -1), cleanLeaf].join("/");
+    if (localTarget === path) return;
+    const prevTree = notebooks;
+    const prevSec = sectionPath;
+    setNotebooks((prev) => renameInTree(prev, path, localTarget, clean));
+    setSectionPath((prev) => swapPrefix(prev, path, localTarget));
+    moveCachedPrefix(path, localTarget);
+    repathOpenPage(path, localTarget);
+    remember(swapPrefix(recall() || null, path, localTarget));
+    enqueue(
+      async () => {
+        await flush();
+        const { path: renamed } = await api.rename(resolvePath(path), clean);
+        reconcilePath(localTarget, renamed);
+      },
+      () => {
+        moveCachedPrefix(localTarget, path);
+        repathOpenPage(localTarget, path);
+        setNotebooks(prevTree);
+        setSectionPath(prevSec);
+      },
+    );
   };
 
   const remove = (path: string, kind: string, name: string) =>
     guard(async () => {
       const extra = kind === "page" ? "" : ` Everything inside this ${kind} is deleted too.`;
       if (!(await confirmAction(`Delete ${kind} "${name}"?`, `This removes it from storage and can't be undone.${extra}`, `Delete ${kind}`))) return;
-      await flush();
-      if (within(pagePath, path)) await selectPage(null);
-      await api.remove(path);
+      const prevTree = notebooks;
+      const prevSec = sectionPath;
+      setNotebooks((prev) => removeFromTree(prev, path));
+      removeCachedPrefix(path);
+      if (within(pagePath, path)) void selectPage(null);
       if (within(sectionPath, path)) setSectionPath(null);
-      await load();
+      enqueue(
+        async () => {
+          await flush();
+          await api.remove(resolvePath(path));
+        },
+        () => {
+          setNotebooks(prevTree);
+          setSectionPath(prevSec);
+        },
+      );
     })();
 
   const label = (path: string, name: string) =>

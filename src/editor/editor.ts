@@ -1,4 +1,5 @@
-import { api, pageUrl } from "../api/api";
+import { api } from "../api/api";
+import { notify } from "../dialog/dialog";
 import { createStore } from "../store/store";
 
 type Current = { path: string; doc: Document; prevEditable: string | null };
@@ -38,6 +39,8 @@ export const editorStore = createStore<EditorState>({
 });
 const readyHandlers: ((doc: Document) => void)[] = [];
 const shortcuts: Record<string, () => void> = {};
+const pageCache = new Map<string, string>();
+const inflightReads = new Map<string, Promise<string>>();
 let frameEl: HTMLIFrameElement | null = null;
 let current: Current | null = null;
 let token = 0;
@@ -66,23 +69,71 @@ export function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-export async function openPage(path: string | null) {
-  await flush();
-  const mine = ++token;
-  current = null;
-  update({ path, doc: null, dirty: false, savedAt: null, error: "" });
-  const el = frameEl;
-  if (!el) return;
-  if (!path) {
-    el.src = "about:blank";
-    return;
+export function setCachedPage(path: string, html: string) {
+  pageCache.set(path, html);
+}
+
+export function clearPageCache() {
+  pageCache.clear();
+  inflightReads.clear();
+}
+
+export function moveCachedPrefix(oldPrefix: string, newPrefix: string) {
+  for (const [k, v] of [...pageCache.entries()]) {
+    if (k === oldPrefix || k.startsWith(`${oldPrefix}/`)) {
+      pageCache.delete(k);
+      pageCache.set(newPrefix + k.slice(oldPrefix.length), v);
+    }
   }
-  const loaded = new Promise<void>((resolve) => el.addEventListener("load", () => resolve(), { once: true }));
-  el.src = pageUrl("page", path);
-  await loaded;
+}
+
+export function removeCachedPrefix(prefix: string) {
+  for (const k of [...pageCache.keys()]) {
+    if (k === prefix || k.startsWith(`${prefix}/`)) {
+      pageCache.delete(k);
+    }
+  }
+}
+
+export function repathOpenPage(oldPrefix: string, newPrefix: string) {
+  if (!current) return;
+  if (current.path === oldPrefix || current.path.startsWith(`${oldPrefix}/`)) {
+    const nextPath = newPrefix + current.path.slice(oldPrefix.length);
+    current.path = nextPath;
+    update({ path: nextPath });
+  }
+}
+
+function fetchPage(path: string): Promise<string> {
+  const existing = inflightReads.get(path);
+  if (existing) return existing;
+  const p = api
+    .readPage(path)
+    .then((html) => {
+      pageCache.set(path, html);
+      return html;
+    })
+    .finally(() => inflightReads.delete(path));
+  inflightReads.set(path, p);
+  return p;
+}
+
+export async function prefetchPage(path: string) {
+  if (pageCache.has(path)) return;
+  try {
+    await fetchPage(path);
+  } catch {}
+}
+
+function mountHtml(el: HTMLIFrameElement, path: string, html: string, mine: number) {
   const doc = el.contentDocument;
-  if (mine !== token || !doc?.body) return;
-  current = { path, doc, prevEditable: doc.body.getAttribute("contenteditable") };
+  if (!doc || mine !== token) return;
+  doc.open();
+  doc.write(html || "<!DOCTYPE html><html><head></head><body></body></html>");
+  doc.close();
+  if (mine !== token || !doc.body) return;
+  const prevEditable = doc.body.getAttribute("contenteditable");
+  current = { path, doc, prevEditable };
   doc.body.setAttribute("contenteditable", "true");
   doc.body.addEventListener("input", onInput);
   doc.addEventListener("keydown", onKeyDown);
@@ -91,6 +142,56 @@ export async function openPage(path: string | null) {
   snapshot = doc.body.innerHTML;
   readyHandlers.forEach((fn) => fn(doc));
   update({ doc });
+}
+
+export async function openPage(path: string | null, forceReload = false) {
+  if (pending) void save();
+  const mine = ++token;
+  current = null;
+  clearTimeout(saveTimer);
+  clearTimeout(typingTimer);
+  pending = false;
+  update({ path, doc: null, dirty: false, savedAt: null, error: "" });
+  const el = frameEl;
+  if (!el) return;
+  if (!path) {
+    const doc = el.contentDocument;
+    if (doc) {
+      doc.open();
+      doc.write("<!DOCTYPE html><html><body></body></html>");
+      doc.close();
+    } else {
+      el.src = "about:blank";
+    }
+    return;
+  }
+  if (!el.contentDocument) {
+    await new Promise<void>((resolve) => {
+      el.addEventListener("load", () => resolve(), { once: true });
+      el.src = "about:blank";
+    });
+  }
+  if (mine !== token) return;
+  const cached = !forceReload ? pageCache.get(path) : undefined;
+  if (cached !== undefined) {
+    mountHtml(el, path, cached, mine);
+    void fetchPage(path).then(
+      (fresh) => {
+        if (mine === token && current?.path === path && !pending && fresh !== cached) {
+          mountHtml(el, path, fresh, mine);
+        }
+      },
+      () => {},
+    );
+    return;
+  }
+  try {
+    const html = await fetchPage(path);
+    if (mine !== token) return;
+    mountHtml(el, path, html, mine);
+  } catch (err) {
+    if (mine === token) update({ error: (err as Error).message });
+  }
 }
 
 export function ensureCaret(doc: Document) {
@@ -184,14 +285,23 @@ function save() {
   pending = false;
   const { path } = current;
   const html = cleanHtml(current);
+  pageCache.set(path, html);
   update({ dirty: false, saving: true, error: "" });
   saving = saving
     .then(() => api.savePage(path, html))
     .then(
-      () => update({ saving: false, savedAt: Date.now() }),
+      () => {
+        if (current?.path === path) update({ saving: false, savedAt: Date.now() });
+        else update({ saving: false });
+      },
       (err: Error) => {
-        pending = true;
-        update({ saving: false, dirty: true, error: err.message });
+        if (current?.path === path) {
+          pending = true;
+          update({ saving: false, dirty: true, error: err.message });
+        } else {
+          update({ saving: false });
+          notify(`Could not save "${path}": ${err.message}`, "error");
+        }
       },
     );
   return saving;

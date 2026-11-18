@@ -8,7 +8,7 @@ type Preset = "r2" | "b2" | "aws" | "custom";
 const PRESETS: { id: Preset; label: string; endpointPlaceholder: string }[] = [
   { id: "r2", label: "Cloudflare R2", endpointPlaceholder: "https://<account-id>.r2.cloudflarestorage.com" },
   { id: "b2", label: "Backblaze B2", endpointPlaceholder: "https://s3.us-west-004.backblazeb2.com" },
-  { id: "aws", label: "AWS S3", endpointPlaceholder: "Leave blank for AWS S3" },
+  { id: "aws", label: "AWS S3", endpointPlaceholder: "Optional for standard AWS S3" },
   { id: "custom", label: "Custom S3", endpointPlaceholder: "https://s3.example.com" },
 ];
 
@@ -108,6 +108,8 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
   };
 
   const activePreset = PRESETS.find((p) => p.id === preset)!;
+  const endpointRequired = preset !== "aws";
+  const secretRequired = !config?.hasSecretKey;
 
   return (
     <form
@@ -120,8 +122,12 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
       }}
       onSubmit={submit}
     >
-      <h1 id="storage-title">{config?.configured ? "Object storage settings" : "Connect object storage"}</h1>
-      <p className="hint">Notes are stored directly as .html files in your S3-compatible bucket.</p>
+      <div className="storage-head">
+        <div>
+          <h1 id="storage-title">{config?.configured ? "Object storage settings" : "Connect object storage"}</h1>
+          <p className="hint">Notes are saved as .html files directly in your S3-compatible bucket. Fields marked * are required.</p>
+        </div>
+      </div>
 
       <div className="storage-presets" role="group" aria-label="Storage provider">
         {PRESETS.map((p) => (
@@ -137,29 +143,28 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
       </div>
 
       <div className="storage-grid">
-        <label>
-          Endpoint URL (S3_ENDPOINT_URL)
+        <label className="storage-field span-2">
+          <span className="field-head">
+            <span className="field-title">
+              Endpoint URL {endpointRequired ? <span className="req">*</span> : <span className="opt">optional</span>}
+            </span>
+            <code className="field-env">S3_ENDPOINT_URL</code>
+          </span>
           <input
             ref={endpointRef}
             type="url"
             placeholder={activePreset.endpointPlaceholder}
-            required={preset !== "aws"}
+            required={endpointRequired}
             value={endpointUrl}
             onChange={(e) => onEndpointChange(e.target.value)}
           />
         </label>
-        <label>
-          Region (S3_REGION)
-          <input
-            type="text"
-            placeholder="auto"
-            required
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-          />
-        </label>
-        <label>
-          Bucket (S3_BUCKET)
+
+        <label className="storage-field">
+          <span className="field-head">
+            <span className="field-title">Bucket <span className="req">*</span></span>
+            <code className="field-env">S3_BUCKET</code>
+          </span>
           <input
             type="text"
             placeholder="my-html-notes"
@@ -168,17 +173,26 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
             onChange={(e) => setBucket(e.target.value)}
           />
         </label>
-        <label>
-          Prefix (S3_PREFIX, optional)
+
+        <label className="storage-field">
+          <span className="field-head">
+            <span className="field-title">Region <span className="req">*</span></span>
+            <code className="field-env">S3_REGION</code>
+          </span>
           <input
             type="text"
-            placeholder="notes/personal"
-            value={prefix}
-            onChange={(e) => setPrefix(e.target.value)}
+            placeholder="auto"
+            required
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
           />
         </label>
-        <label>
-          Access Key ID (S3_ACCESS_KEY_ID)
+
+        <label className="storage-field">
+          <span className="field-head">
+            <span className="field-title">Access Key ID <span className="req">*</span></span>
+            <code className="field-env">S3_ACCESS_KEY_ID</code>
+          </span>
           <input
             type="text"
             autoComplete="off"
@@ -187,23 +201,48 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
             onChange={(e) => setAccessKeyId(e.target.value)}
           />
         </label>
-        <label>
-          Secret Access Key (S3_SECRET_ACCESS_KEY)
+
+        <label className="storage-field">
+          <span className="field-head">
+            <span className="field-title">
+              Secret Access Key {secretRequired ? <span className="req">*</span> : <span className="opt">saved</span>}
+            </span>
+            <code className="field-env">S3_SECRET_ACCESS_KEY</code>
+          </span>
           <input
             type="password"
             autoComplete="new-password"
-            placeholder={config?.hasSecretKey ? "Saved — leave blank to keep current" : ""}
-            required={!config?.hasSecretKey}
+            placeholder={config?.hasSecretKey ? "Leave blank to keep saved key" : ""}
+            required={secretRequired}
             value={secretAccessKey}
             onChange={(e) => setSecretAccessKey(e.target.value)}
           />
         </label>
-      </div>
 
-      <label className="storage-check">
-        <input type="checkbox" checked={forcePathStyle} onChange={(e) => setForcePathStyle(e.target.checked)} />
-        <span>Use path-style URLs (S3_FORCE_PATH_STYLE)</span>
-      </label>
+        <label className="storage-field">
+          <span className="field-head">
+            <span className="field-title">Key Prefix <span className="opt">optional</span></span>
+            <code className="field-env">S3_PREFIX</code>
+          </span>
+          <input
+            type="text"
+            placeholder="notes/personal"
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
+          />
+        </label>
+
+        <div className="storage-field">
+          <span className="field-head">
+            <span className="field-title">Addressing</span>
+            <code className="field-env">S3_FORCE_PATH_STYLE</code>
+          </span>
+          <label className="storage-check-box">
+            <input type="checkbox" checked={forcePathStyle} onChange={(e) => setForcePathStyle(e.target.checked)} />
+            <span>Use path-style URLs</span>
+          </label>
+        </div>
+      </div>
 
       {status && (
         <p className={status.kind === "ok" ? "storage-ok" : "auth-error"} role="alert">
