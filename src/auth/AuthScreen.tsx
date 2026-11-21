@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Icon } from "../ui/icons";
 import { loginUser, requestSignupOtp, verifySignupOtp } from "./auth";
 
 export function AuthScreen() {
@@ -8,9 +9,13 @@ export function AuthScreen() {
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => new URLSearchParams(window.location.search).get("drive_error") ?? "");
   const [busy, setBusy] = useState(false);
   const isLogin = mode === "login";
+
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState({}, "", window.location.pathname);
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -120,6 +125,13 @@ export function AuthScreen() {
       <form className="auth-card" onSubmit={submit}>
         <h1>{isLogin ? "Sign in" : "Create your account"}</h1>
         <p className="hint">Your notebooks are private to your account.</p>
+        <button type="button" className="drive-btn auth-google" disabled={busy} onClick={() => window.location.assign("/api/drive/login")}>
+          <Icon name="drive" size={16} />
+          <span>Continue with Google</span>
+        </button>
+        <div className="storage-section-divider">
+          <span>or use email</span>
+        </div>
         <label>
           Email
           <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />

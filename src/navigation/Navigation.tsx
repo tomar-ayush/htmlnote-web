@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { api, type Notebook, type Section } from "../api/api";
 import { confirmAction, notify } from "../dialog/dialog";
 import {
@@ -163,6 +172,37 @@ function removeFromTree(tree: Notebook[], targetPath: string): Notebook[] {
   );
 }
 
+function reorderList<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+function reorderInTree(
+  tree: Notebook[],
+  kind: "notebooks" | "sections" | "pages",
+  parent: string,
+  from: number,
+  to: number,
+): Notebook[] {
+  if (kind === "notebooks") return reorderList(tree, from, to);
+  if (kind === "sections") {
+    return tree.map((nb) => (nb.path === parent ? { ...nb, sections: reorderList(nb.sections, from, to) } : nb));
+  }
+  return tree.map((nb) => ({
+    ...nb,
+    sections: nb.sections.map((s) => (s.path === parent ? { ...s, pages: reorderList(s.pages, from, to) } : s)),
+  }));
+}
+
+function siblingPaths(tree: Notebook[], kind: "notebooks" | "sections" | "pages", parent: string): string[] {
+  if (kind === "notebooks") return tree.map((nb) => nb.path);
+  if (kind === "sections") return tree.find((nb) => nb.path === parent)?.sections.map((s) => s.path) ?? [];
+  return findSection(tree, parent)?.pages.map((p) => p.path) ?? [];
+}
+
 function Tool({ title, onClick, children }: { title: string; onClick: () => void; children: ReactNode }) {
   return (
     <button
@@ -223,10 +263,14 @@ export function Navigation() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [reorderingPath, setReorderingPath] = useState<string | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const queueRef = useRef(Promise.resolve());
   const aliasRef = useRef(new Map<string, string>());
   const treeReadyRef = useRef(false);
+  const notebooksRef = useRef(notebooks);
+  notebooksRef.current = notebooks;
+  const suppressClickRef = useRef(false);
 
   const resolvePath = (local: string) => {
     let cur = local;
@@ -535,6 +579,78 @@ export function Navigation() {
     };
   }, []);
 
+  const startPointerReorder = (
+    e: ReactPointerEvent<HTMLElement>,
+    kind: "notebooks" | "sections" | "pages",
+    parent: string,
+    path: string,
+  ) => {
+    if (e.button !== 0 || editing !== null) return;
+    if ((e.target as HTMLElement).closest("button, input")) return;
+    const startY = e.clientY;
+    const groupKey = `${kind}:${parent}`;
+    let active = false;
+    let changed = false;
+    const prevTree = notebooksRef.current;
+
+    const onMove = (ev: PointerEvent) => {
+      if (!active) {
+        if (Math.abs(ev.clientY - startY) < 5) return;
+        active = true;
+        suppressClickRef.current = true;
+        setReorderingPath(path);
+        document.body.classList.add("reordering-items");
+      }
+      const selector = `[data-reorder-group="${CSS.escape(groupKey)}"]`;
+      const nodes = [...document.querySelectorAll<HTMLElement>(selector)];
+      const fromIdx = nodes.findIndex((el) => el.dataset.reorderPath === path);
+      if (fromIdx === -1) return;
+      let toIdx = fromIdx;
+      for (let i = 0; i < nodes.length; i += 1) {
+        const rect = nodes[i].getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (i > fromIdx && ev.clientY > mid) toIdx = i;
+        if (i < fromIdx && ev.clientY < mid) {
+          toIdx = i;
+          break;
+        }
+      }
+      if (toIdx !== fromIdx) {
+        changed = true;
+        treeReadyRef.current = true;
+        setNotebooks((prev) => reorderInTree(prev, kind, parent, fromIdx, toIdx));
+      }
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      document.body.classList.remove("reordering-items");
+      setReorderingPath(null);
+      if (active) {
+        window.setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 0);
+      }
+      if (active && changed) {
+        const snapshotOrder = siblingPaths(notebooksRef.current, kind, parent);
+        enqueue(
+          async () => {
+            const targetParent = parent ? resolvePathRef.current(parent) : "";
+            const resolvedItems = snapshotOrder.map((p) => resolvePathRef.current(p));
+            await api.reorder(kind, targetParent, resolvedItems);
+          },
+          () => setNotebooks(prevTree),
+        );
+      }
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
   const label = (path: string, name: string) =>
     editing === path ? (
       <NameInput value={name} onDone={(n) => finishRename(path, name, n)} />
@@ -560,7 +676,15 @@ export function Navigation() {
         {!notebooks.length && <p className="hint">Add a notebook to start collecting pages.</p>}
         {notebooks.map((nb) => (
           <div key={nb.path} className="notebook">
-            <div className="notebook-head" onDoubleClick={() => setEditing(nb.path)} title="Double-click to rename">
+            <div
+              className={`notebook-head${reorderingPath === nb.path ? " reordering" : ""}`}
+              data-reorder-group="notebooks:"
+              data-reorder-path={nb.path}
+              onPointerDown={(e) => startPointerReorder(e, "notebooks", "", nb.path)}
+              onDoubleClick={() => setEditing(nb.path)}
+              title="Double-click to rename · Hold and move to reorder"
+            >
+              <span className="drag-grip" aria-hidden="true"><Icon name="grip" size={11} /></span>
               <button
                 type="button"
                 className="caret"
@@ -581,12 +705,18 @@ export function Navigation() {
               nb.sections.map((s, i) => (
                 <div
                   key={s.path}
-                  className={`section${s.path === sectionPath ? " active" : ""}`}
+                  className={`section${s.path === sectionPath ? " active" : ""}${reorderingPath === s.path ? " reordering" : ""}`}
                   style={{ "--section-color": COLORS[i % COLORS.length] } as CSSProperties}
-                  title="Double-click to rename"
-                  onClick={() => s.path !== sectionPath && selectSection(notebooks, s.path)}
+                  data-reorder-group={`sections:${nb.path}`}
+                  data-reorder-path={s.path}
+                  onPointerDown={(e) => startPointerReorder(e, "sections", nb.path, s.path)}
+                  title="Double-click to rename · Hold and move to reorder"
+                  onClick={() => {
+                    if (!suppressClickRef.current && s.path !== sectionPath) selectSection(notebooks, s.path);
+                  }}
                   onDoubleClick={() => setEditing(s.path)}
                 >
+                  <span className="drag-grip" aria-hidden="true"><Icon name="grip" size={11} /></span>
                   {label(s.path, s.name)}
                   <Tool title="Delete section" onClick={() => remove(s.path, "section", s.name)}>✕</Tool>
                 </div>
@@ -631,11 +761,17 @@ export function Navigation() {
         {section?.pages.map((p) => (
           <div
             key={p.path}
-            className={`page${p.path === pagePath ? " active" : ""}`}
-            title="Double-click to rename"
-            onClick={() => p.path !== pagePath && void selectPage(p.path)}
+            className={`page${p.path === pagePath ? " active" : ""}${reorderingPath === p.path ? " reordering" : ""}`}
+            data-reorder-group={`pages:${section.path}`}
+            data-reorder-path={p.path}
+            onPointerDown={(e) => startPointerReorder(e, "pages", section.path, p.path)}
+            title="Double-click to rename · Hold and move to reorder"
+            onClick={() => {
+              if (!suppressClickRef.current && p.path !== pagePath) void selectPage(p.path);
+            }}
             onDoubleClick={() => setEditing(p.path)}
           >
+            <span className="drag-grip" aria-hidden="true"><Icon name="grip" size={11} /></span>
             {label(p.path, p.name)}
             <Tool title="Delete page" onClick={() => remove(p.path, "page", p.name)}>✕</Tool>
           </div>

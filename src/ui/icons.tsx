@@ -322,6 +322,16 @@ const PATHS = {
       <path d="M4 13h8l2-3.5H6z" />
     </>
   ),
+  grip: (
+    <>
+      <circle cx="5.5" cy="4" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="4" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="5.5" cy="8" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="8" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="5.5" cy="12" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="12" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

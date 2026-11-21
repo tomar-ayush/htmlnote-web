@@ -3,11 +3,109 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HTML Notebook</title>
+<title>HTML Notebook — Cloud HTML Notes for Humans &amp; AI Agents</title>
+<meta name="description" content="Open-source OneNote-style HTML notebook where notes are real .html files stored in your own Cloudflare R2, AWS S3, Backblaze B2, or Google Drive—built for humans and AI agents with native rich editing, drawing, version history, and instant public sharing.">
+<meta name="keywords" content="HTML notes app, AI agent notes, LLM HTML notebook, Cloudflare R2 notes, S3 object storage notes, Google Drive HTML sync, OneNote alternative, browser IndexedDB notes, open source HTML notebook">
+<meta name="author" content="Ayush Tomar">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+<meta name="theme-color" content="#7719aa">
+<link rel="canonical" href="https://htmlnotes-zeta.vercel.app/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="LLM Context">
+<link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLM Full Specification">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HTML Notebook">
+<meta property="og:title" content="HTML Notebook — Cloud HTML Notes for Humans &amp; AI Agents">
+<meta property="og:description" content="Store notebooks, sections, and rich HTML pages directly in your own S3-compatible bucket or Google Drive—ready for both human editing and direct AI agent HTML output.">
+<meta property="og:url" content="https://htmlnotes-zeta.vercel.app/">
+<meta property="og:image" content="https://htmlnotes-zeta.vercel.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="HTML Notebook workspace with notebooks, sections, pages, and HTML editor">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HTML Notebook — Cloud HTML Notes for Humans &amp; AI Agents">
+<meta name="twitter:description" content="Multi-tenant HTML-first notes app backed by S3, Cloudflare R2, Backblaze B2, or Google Drive with local IndexedDB persistence and public sharing.">
+<meta name="twitter:image" content="https://htmlnotes-zeta.vercel.app/og-image.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "HTML Notebook",
+      "url": "https://htmlnotes-zeta.vercel.app/",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Web",
+      "description": "Cloud HTML notebook where every page is a clean standalone .html document stored in S3-compatible object storage (Cloudflare R2, Backblaze B2, AWS S3) or Google Drive, designed for both human rich-text editing and AI agent publishing.",
+      "featureList": [
+        "Native .html page storage instead of lossy Markdown conversion",
+        "Zero-setup free managed Cloudflare R2 tier plus Bring-Your-Own S3, R2, or Backblaze B2 bucket",
+        "Isolated Google Drive OAuth folder sync",
+        "Browser IndexedDB instant offline-resilient edits with 6-second cloud sync",
+        "Visual HTML box-model inspector, tables, freehand SVG drawing, and 10-version snapshots",
+        "Revocable expiring public share links (/s/{token}) with sandboxed CSP"
+      ],
+      "codeRepository": "https://github.com/tomar-ayush/htmlnote-web"
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "name": "HTML Notebook Frontend & API",
+      "programmingLanguage": ["TypeScript", "Python"],
+      "codeRepository": "https://github.com/tomar-ayush/htmlnote-web",
+      "sameAs": [
+        "https://github.com/tomar-ayush/htmlnote-web",
+        "https://github.com/tomar-ayush/htmlnote-api"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why store notes as HTML instead of Markdown?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "LLMs and coding agents generate structured layouts, tables, callouts, and inline styles more reliably in HTML than in flavor-fragmented Markdown. HTML Notebook preserves full HTML fidelity."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can AI agents write notes directly to HTML Notebook?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Upload any .html file to [S3_PREFIX/]<notebook>/<section>/<page>.html in the connected S3 or R2 bucket, or into the HTML Notebook/<notebook>/<section>/ folder in Google Drive. The app discovers it automatically without manifest lock-in."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <div id="root"></div>
+<noscript>
+<main style="font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.6;color:#1f2329">
+<h1>HTML Notebook</h1>
+<p>Cloud HTML notes workspace built for humans and AI agents. Every page is saved as a standalone <code>.html</code> file so rich tables, callouts, drawings, and LLM-generated layouts never lose formatting.</p>
+<h2>Storage Backends</h2>
+<ul>
+<li>Zero-setup free managed Cloudflare R2 storage</li>
+<li>Universal S3-compatible buckets (Cloudflare R2, Backblaze B2, AWS S3, MinIO)</li>
+<li>Separate Google Drive OAuth folder sync (<code>HTML Notebook</code>)</li>
+</ul>
+<h2>AI Agent Integration</h2>
+<p>Agents can upload HTML pages directly to <code>[prefix/]&lt;notebook&gt;/&lt;section&gt;/&lt;page&gt;.html</code> in the connected bucket and HTML Notebook indexes them immediately.</p>
+<h2>Machine-Readable Resources</h2>
+<ul>
+<li><a href="/llms.txt">llms.txt — AI Agent Overview</a></li>
+<li><a href="/llms-full.txt">llms-full.txt — Complete Architecture &amp; API Reference</a></li>
+<li><a href="https://github.com/tomar-ayush/htmlnote-web">Frontend Source on GitHub</a></li>
+<li><a href="https://github.com/tomar-ayush/htmlnote-api">Backend API Source on GitHub</a></li>
+</ul>
+</main>
+</noscript>
 <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

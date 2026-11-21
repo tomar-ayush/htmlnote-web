@@ -1,0 +1,22 @@
+HTML Notebook
+=============
+
+Summary: Open-source, OneNote-style web notebook where every note is a real standalone .html file stored directly in the user's S3-compatible bucket (Cloudflare R2, Backblaze B2, AWS S3) or an isolated Google Drive folder. Purpose-built for both human visual editing and AI/LLM agents that generate richer documents in HTML than in Markdown.
+
+Canonical URL: https://htmlnotes-zeta.vercel.app/
+Full AI Spec: https://htmlnotes-zeta.vercel.app/llms-full.txt
+Sitemap: https://htmlnotes-zeta.vercel.app/sitemap.xml
+
+Key Capabilities
+----------------
+- Native HTML Pages: Tables, callouts, inline CSS styles, diagrams, and rich formatting stay intact without Markdown lossiness.
+- Bring Your Own Storage or Free Managed Tier: Start immediately on shared R2 storage or connect Cloudflare R2, Backblaze B2, AWS S3, or any S3-compatible endpoint.
+- Separate Google Drive Sync: Connect Google Drive via OAuth (`drive.file` scope) to sync notebooks under a dedicated "HTML Notebook" Drive folder independently from S3.
+- Local-First IndexedDB Persistence: Instant keystroke buffering in IndexedDB with 6-second background cloud sync and manual Save / Autosave toggle.
+- Custom Order + Drag Reorder: Notebooks, sections, and pages preserve creation order and can be reordered by holding and moving items.
+- Public Share Links: Generate revocable, optionally expiring `/s/{token}` links served read-only inside a sandboxed CSP.
+
+Open Source Repositories
+------------------------
+- Frontend (`htmlnote-web`): https://github.com/tomar-ayush/htmlnote-web
+- Backend API (`htmlnote-api`): https://github.com/tomar-ayush/htmlnote-api

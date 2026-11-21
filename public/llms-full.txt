@@ -1,0 +1,41 @@
+HTML Notebook — Full AI & Developer Specification
+===================================================
+
+Overview
+--------
+HTML Notebook (`https://htmlnotes-zeta.vercel.app/`) is a multi-tenant web application built with React + TypeScript (`htmlnote-web`) and FastAPI + PostgreSQL (`htmlnote-api`). Unlike Markdown note tools, every page is stored natively as `.html`, enabling AI agents, MCP tools, cron scripts, and humans to author complex structured documents using standard HTML and CSS.
+
+Bucket & Folder Layout (Direct AI Agent Publishing)
+----------------------------------------------------
+External agents can publish notes directly into a user's configured S3/R2 bucket without going through the UI:
+
+  [S3_PREFIX/]
+  ├── .order.json
+  ├── <Notebook>/
+  │   └── <Section>/
+  │       ├── .keep
+  │       └── <Page>.html
+  └── .versions/<Notebook>/<Section>/<Page>.html/<epoch_ms>.html
+
+Rules for direct agent uploads:
+1. Any `.html` or `.htm` object at `<prefix>/<Notebook>/<Section>/<Page>.html` automatically appears in the sidebar under Notebook -> Section -> Page.
+2. Put a descriptive `<title>Page Name</title>` inside `<head>` and place body content inside `<body>`.
+3. Interactive `<script>` tags are stripped/blocked on edit routes (`EDIT_CSP: script-src 'none'; object-src 'none'; base-uri 'none'`) for XSS isolation and permitted inside sandboxed view/share routes (`VIEW_CSP: sandbox allow-scripts allow-popups allow-modals`).
+
+Storage Backends
+----------------
+1. Managed Shared R2 Tier: Zero-setup free starter storage isolated per user ID.
+2. Universal S3 API (`PUT /api/storage`): Supports Cloudflare R2, Backblaze B2, AWS S3, and custom endpoints with Fernet-encrypted secrets, SSRF IP validation, and `verify_access()` write/list/delete checks.
+3. Google Drive OAuth (`GET /api/drive/auth-url`, `GET /api/drive/callback`, `POST /api/drive/provider`): Uses `drive.file` scope to manage an isolated `"HTML Notebook"` root folder completely separate from S3 buckets.
+
+REST API Endpoints
+------------------
+- Auth: `GET /api/auth/me`, `POST /api/auth/signup`, `POST /api/auth/verify-signup`, `POST /api/auth/login`, `POST /api/auth/logout`
+- Storage & Drive: `GET/PUT/DELETE /api/storage`, `POST /api/storage/test`, `GET /api/drive/auth-url`, `GET /api/drive/callback`, `POST /api/drive/provider`, `DELETE /api/drive`
+- Notebooks & Pages: `GET /api/tree`, `POST /api/folder`, `POST /api/page`, `PUT /api/page?path=...`, `POST /api/rename`, `POST /api/reorder`, `DELETE /api/item?path=...`
+- History & Sharing: `GET /api/versions?path=...`, `GET /api/version?path=...&id=...`, `GET/POST/DELETE /api/share`, `GET /s/{token}`
+
+Repositories
+------------
+- Frontend: https://github.com/tomar-ayush/htmlnote-web
+- Backend API: https://github.com/tomar-ayush/htmlnote-api

@@ -76,6 +76,8 @@ export const api = {
   savePage: (path: string, html: string, keepVersion = false) =>
     call<{ saved: boolean }>("PUT", `/api/page?path=${q(path)}`, { html, keepVersion }),
   rename: (path: string, name: string) => call<{ path: string }>("POST", "/api/rename", { path, name }),
+  reorder: (kind: "notebooks" | "sections" | "pages", parent: string, items: string[]) =>
+    call<{ ok: boolean }>("POST", "/api/reorder", { kind, parent, items }),
   remove: (path: string) => call<{ removed: boolean }>("DELETE", `/api/item?path=${q(path)}`),
   versions: (path: string) => call<Version[]>("GET", `/api/versions?path=${q(path)}`),
   version: (path: string, id: string) => call<{ html: string }>("GET", `/api/version?path=${q(path)}&id=${q(id)}`),

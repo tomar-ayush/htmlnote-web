@@ -46,6 +46,7 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
   const [forcePathStyle, setForcePathStyle] = useState(isCustom ? config.forcePathStyle : false);
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showS3, setShowS3] = useState(isCustom || !config?.driveAvailable);
   const endpointRef = useRef<HTMLInputElement>(null);
 
   const pickPreset = (next: Preset) => {
@@ -236,6 +237,28 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
         </div>
       </section>
 
+      {!showS3 && status && (
+        <p className={status.kind === "ok" ? "storage-ok" : "auth-error"} role="alert">
+          {status.text}
+        </p>
+      )}
+
+      {!showS3 && (
+        <div className="dialog-actions storage-actions">
+          <button type="button" disabled={busy} onClick={() => setShowS3(true)}>
+            Use S3-compatible object storage instead
+          </button>
+          <span className="spacer" />
+          {modal && (
+            <button type="button" disabled={busy} onClick={closeStorage}>
+              Cancel
+            </button>
+          )}
+        </div>
+      )}
+
+      {showS3 && (
+      <>
       <div className="storage-section-divider">
         <span>S3-compatible Object Storage</span>
       </div>
@@ -393,6 +416,8 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
           {busy ? "Please wait…" : "Save & connect"}
         </button>
       </div>
+      </>
+      )}
     </form>
   );
 }

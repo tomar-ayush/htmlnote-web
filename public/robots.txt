@@ -1,0 +1,100 @@
+User-agent: *
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: Claude-Web
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+User-agent: CCBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /s/
+Disallow: /api/
+Disallow: /page/
+Disallow: /view/
+
+Sitemap: https://htmlnotes-zeta.vercel.app/sitemap.xml
