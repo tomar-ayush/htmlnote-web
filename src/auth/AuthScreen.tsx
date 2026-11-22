@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Icon } from "../ui/icons";
+import { GoogleMark } from "../site/Site";
 import { loginUser, requestSignupOtp, verifySignupOtp } from "./auth";
 
 export function AuthScreen() {
@@ -65,10 +65,10 @@ export function AuthScreen() {
   if (mode === "otp") {
     return (
       <div className="auth">
-        <div className="auth-bar">
+        <a className="auth-bar" href="/">
           <span className="brand-mark" aria-hidden="true" />
           HTML Notebook
-        </div>
+        </a>
         <form className="auth-card" onSubmit={submit}>
           <h1>Check your email</h1>
           <p className="hint">Enter the 6-digit verification code sent to {email}.</p>
@@ -118,15 +118,15 @@ export function AuthScreen() {
 
   return (
     <div className="auth">
-      <div className="auth-bar">
+      <a className="auth-bar" href="/">
         <span className="brand-mark" aria-hidden="true" />
         HTML Notebook
-      </div>
+      </a>
       <form className="auth-card" onSubmit={submit}>
         <h1>{isLogin ? "Sign in" : "Create your account"}</h1>
         <p className="hint">Your notebooks are private to your account.</p>
         <button type="button" className="drive-btn auth-google" disabled={busy} onClick={() => window.location.assign("/api/drive/login")}>
-          <Icon name="drive" size={16} />
+          <GoogleMark size={16} />
           <span>Continue with Google</span>
         </button>
         <div className="storage-section-divider">

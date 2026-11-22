@@ -64,6 +64,8 @@ input {
 }
 
 .brand {
+  color: inherit;
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -158,6 +160,7 @@ input {
 }
 
 .auth-bar {
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 10px;

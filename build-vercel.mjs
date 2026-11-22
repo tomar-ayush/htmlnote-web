@@ -18,6 +18,7 @@ cpSync("dist", ".vercel/output/static", { recursive: true });
 const config = {
   version: 3,
   routes: [
+    { src: "^/(?!s/).*$", headers: { "X-Frame-Options": "SAMEORIGIN" }, continue: true },
     { src: "^/api/(.*)$", dest: `${raw}/api/$1` },
     { src: "^/page/(.*)$", dest: `${raw}/page/$1` },
     { src: "^/view/(.*)$", dest: `${raw}/view/$1` },

@@ -164,6 +164,18 @@ export async function removeLocalPrefix(scope: string, prefix: string): Promise<
   await txDone(tx);
 }
 
+export async function clearSyncedLocal(): Promise<void> {
+  const db = await openDb();
+  if (!db) return;
+  const tx = db.transaction([STORE_TREES, STORE_PAGES], "readwrite");
+  tx.objectStore(STORE_TREES).clear();
+  const pages = tx.objectStore(STORE_PAGES);
+  for (const row of (await reqPromise<PageRow[]>(pages.getAll())) ?? []) {
+    if (!row.dirty) pages.delete(row.id);
+  }
+  await txDone(tx);
+}
+
 export async function listDirtyPages(scope: string): Promise<{ path: string; html: string }[]> {
   const rows = await listScopePages(scope);
   return rows.filter((r) => r.dirty).map((r) => ({ path: r.path, html: r.html }));

@@ -144,7 +144,7 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
   };
 
   const removeDrive = async () => {
-    if (!(await confirmAction("Disconnect Google Drive?", "Your HTML Notebook folder remains in your Google Drive.", "Disconnect"))) return;
+    if (!(await confirmAction("Disconnect Google Drive?", "Your html-notes-app folder remains in your Google Drive.", "Disconnect"))) return;
     setBusy(true);
     setStatus(null);
     try {
@@ -192,13 +192,13 @@ function StorageForm({ config, modal }: { config: StorageConfig | null | undefin
           </div>
           {isDriveConnected ? (
             <span className="hint">
-              Folder: {config?.driveFolderName || "HTML Notebook"}
+              Folder: {config?.driveFolderName || "html-notes-app"}
               {config?.driveEmail ? ` (${config.driveEmail})` : ""}
             </span>
           ) : (
             <span className="hint">
               {config?.driveAvailable
-                ? "Creates an isolated HTML Notebook folder tree in your Google Drive with background browser sync."
+                ? "Creates an html-notes-app folder in your Google Drive and keeps your notebooks, sections and pages inside it."
                 : "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the backend server to enable OAuth."}
             </span>
           )}

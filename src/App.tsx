@@ -6,6 +6,8 @@ import { attachFrame, editorStore, focusDoc } from "./editor/editor";
 import { FindPanel } from "./find/FindPanel";
 import { findStore } from "./find/find";
 import { Header } from "./header/Header";
+import { Landing } from "./landing/Landing";
+import { Privacy, Terms } from "./legal/Legal";
 import { Navigation, requestPageRename } from "./navigation/Navigation";
 import { Ribbon } from "./ribbon/Ribbon";
 import { ShareModal } from "./share/ShareModal";
@@ -41,7 +43,7 @@ function Workspace() {
     const driveOk = params.get("drive");
     const driveErr = params.get("drive_error");
     if (driveOk === "connected") {
-      notify("Google Drive connected. Notes now sync to your HTML Notebook folder.");
+      notify("Google Drive connected. Notes now sync to your html-notes-app folder.");
     } else if (driveErr) {
       notify(driveErr, "error");
     }
@@ -146,10 +148,19 @@ function Workspace() {
 
 export function App() {
   const user = userStore.use();
+  const path = window.location.pathname;
 
   useEffect(() => {
     void loadUser();
   }, []);
+
+  useEffect(() => {
+    if (user && path === "/login") window.history.replaceState({}, "", "/app");
+  }, [user, path]);
+
+  if (path === "/privacy") return <Privacy />;
+  if (path === "/terms") return <Terms />;
+  if (path !== "/app" && path !== "/login") return <Landing />;
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { authApi, onUnauthorized, type User } from "../api/api";
 import { clearPageCache, flushAll, openPage } from "../editor/editor";
 import { createStore } from "../store/store";
+import { clearSyncedLocal } from "../sync/localdb";
 
 export const userStore = createStore<User | null | undefined>(undefined);
 
@@ -36,5 +37,6 @@ export async function signOut() {
   await openPage(null);
   clearPageCache();
   await authApi.logout();
+  await clearSyncedLocal();
   userStore.set(null);
 }

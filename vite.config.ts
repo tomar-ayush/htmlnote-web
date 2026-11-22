@@ -11,7 +11,7 @@ export default defineConfig({
       "/api": backend,
       "/page": backend,
       "/view": backend,
-      "/s": backend,
+      "/s/": backend,
     },
   },
 });

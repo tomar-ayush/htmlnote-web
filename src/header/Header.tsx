@@ -72,7 +72,7 @@ export function Header() {
   if (config?.mode === "gdrive") {
     storageIcon = "drive";
     storageLabel = config.driveEmail ? `Drive: ${config.driveEmail}` : "Google Drive";
-    storageTitle = `Syncing to Google Drive (${config.driveFolderName || "HTML Notebook"}) — click to switch or manage storage`;
+    storageTitle = `Syncing to Google Drive (${config.driveFolderName || "html-notes-app"}) — click to switch or manage storage`;
   } else if (config?.mode === "custom") {
     storageLabel = `Storage: ${config.bucket}`;
     storageTitle = `Custom bucket: ${config.bucket}`;
@@ -85,10 +85,10 @@ export function Header() {
 
   return (
     <header className="header">
-      <div className="brand" aria-label="HTML Notebook">
+      <a className="brand" href="/" title="Back to the homepage">
         <span className="brand-mark" aria-hidden="true" />
         HTML Notebook
-      </div>
+      </a>
       <nav className="crumbs" aria-label="Current page">
         {parts.map((p) => (
           <span key={p} className="crumb">{p}</span>
