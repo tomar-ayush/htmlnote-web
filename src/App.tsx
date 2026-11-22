@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { AuthScreen } from "./auth/AuthScreen";
 import { loadUser, userStore } from "./auth/auth";
 import { DialogHost, notify } from "./dialog/dialog";
-import { attachFrame, editorStore, focusDoc } from "./editor/editor";
+import { pageUrl } from "./api/api";
+import { attachFrame, editorStore, flush, focusDoc } from "./editor/editor";
 import { FindPanel } from "./find/FindPanel";
 import { findStore } from "./find/find";
 import { Header } from "./header/Header";
@@ -25,6 +26,7 @@ function Workspace() {
   const pageTitle = path ? (path.split("/").pop() ?? "").replace(/\.html?$/i, "") : "";
   const [titleDraft, setTitleDraft] = useState(pageTitle);
   const skipBlurRef = useRef(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTitleDraft(pageTitle);
@@ -95,7 +97,7 @@ function Workspace() {
       <main className="workspace">
         <Navigation key={revision} />
         <section className="canvas" aria-label="Page">
-          <div className={path ? "page-sheet" : "page-sheet is-empty"}>
+          <div ref={sheetRef} className={path ? "page-sheet" : "page-sheet is-empty"}>
             {path && (
               <header className="page-title-bar">
                 <input
@@ -124,6 +126,29 @@ function Workspace() {
                     }
                   }}
                 />
+                <button
+                  type="button"
+                  className="page-share-btn"
+                  onClick={() => (document.fullscreenElement ? document.exitFullscreen() : sheetRef.current?.requestFullscreen())}
+                  title="Full screen"
+                >
+                  <Icon name="expand" />
+                  <span>Full screen</span>
+                </button>
+                <button
+                  type="button"
+                  className="page-share-btn"
+                  onClick={() => {
+                    const tab = window.open("", "_blank");
+                    if (!tab) return;
+                    tab.opener = null;
+                    void flush().finally(() => tab.location.replace(pageUrl("view", path)));
+                  }}
+                  title="Open a read-only view in a new tab"
+                >
+                  <Icon name="external" />
+                  <span>Read only</span>
+                </button>
                 <button type="button" className="page-share-btn" onClick={() => openShare(path)} title="Share this page">
                   <Icon name="share" />
                   <span>Share</span>

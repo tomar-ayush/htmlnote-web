@@ -315,6 +315,7 @@ const PATHS = {
     </>
   ),
   check: <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />,
+  expand: <path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />,
   drive: (
     <>
       <path d="M6 2.5h4l4 7h-4z" />

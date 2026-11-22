@@ -525,6 +525,15 @@ export function Navigation() {
     if (!cleanLeaf || cleanLeaf === ".html") return;
     const localTarget = [...parts.slice(0, -1), cleanLeaf].join("/");
     if (localTarget === path) return;
+    const taken = notebooks.some(
+      (nb) =>
+        nb.path === localTarget ||
+        nb.sections.some((s) => s.path === localTarget || s.pages.some((p) => p.path === localTarget)),
+    );
+    if (taken) {
+      notify(`A ${isPage ? "page" : parts.length === 2 ? "section" : "notebook"} named "${clean}" already exists here`, "error");
+      return;
+    }
     const prevTree = notebooks;
     const prevSec = sectionPath;
     setNotebooks((prev) => renameInTree(prev, path, localTarget, clean));
