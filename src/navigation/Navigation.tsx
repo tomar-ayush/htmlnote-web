@@ -61,7 +61,7 @@ function blankPage(title: string) {
 <style>
 body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:15px;font-weight:400;max-width:760px;margin:0 auto;padding:28px 48px 64px;line-height:1.6;color:#1f2329}
 p{margin:0 0 10px;font-size:15px;font-weight:400}
-[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;font-weight:400;pointer-events:none}
+body>[data-placeholder]:only-child:empty::before,body>[data-placeholder]:only-child:has(> br:only-child)::before{content:attr(data-placeholder);color:#98a2b3;font-weight:400;pointer-events:none}
 </style>
 </head>
 <body>

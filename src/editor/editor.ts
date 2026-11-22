@@ -192,6 +192,12 @@ export async function prefetchPage(path: string) {
 }
 
 function normalizeBody(doc: Document) {
+  doc.querySelectorAll("style").forEach((s) => {
+    s.textContent = (s.textContent ?? "").replace(
+      "[data-placeholder]:empty::before,[data-placeholder]:has(> br:only-child)::before{",
+      "body>[data-placeholder]:only-child:empty::before,body>[data-placeholder]:only-child:has(> br:only-child)::before{",
+    );
+  });
   doc.querySelectorAll("h1.hn-title").forEach((h1) => {
     if (!(h1.textContent ?? "").trim() && h1.nextElementSibling) {
       h1.remove();
