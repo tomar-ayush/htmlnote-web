@@ -763,7 +763,8 @@ input {
 .section .tool,
 .page .tool,
 .notebook-head .tool {
-  opacity: 0;
+  opacity: 0.45;
+  transition: opacity 150ms var(--ease-out);
 }
 
 .section:hover .tool,
