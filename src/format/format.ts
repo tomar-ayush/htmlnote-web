@@ -1,5 +1,6 @@
 import { ask } from "../dialog/dialog";
 import { change, escapeHtml, focusDoc, getDoc } from "../editor/editor";
+import { normalizeLinkInput } from "../links/links";
 
 const BLOCKS = "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,td,th,div";
 
@@ -71,7 +72,8 @@ export function lineHeight(delta: number) {
 
 export async function insertLink() {
   if (!getDoc()) return;
-  const url = await ask("Add a link", { input: "https://", confirmText: "Add link" });
+  const raw = await ask("Add a link", { input: "https://", confirmText: "Add link" });
+  const url = raw && raw.trim() !== "https://" ? normalizeLinkInput(raw) : "";
   if (!url) return;
   run((doc) =>
     doc.getSelection()?.isCollapsed

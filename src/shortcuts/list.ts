@@ -21,6 +21,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { id: "underline", keys: [MOD, "U"], label: "Underline" },
       { id: "strike", keys: [MOD, SHIFT, "X"], label: "Strikethrough" },
       { id: "link", keys: [MOD, SHIFT, "K"], label: "Add or edit a link" },
+      { id: "openLink", keys: [MOD, "Click"], label: "Open a link" },
       { id: "inlineCode", keys: [MOD, ALT, "C"], label: "Inline code" },
       { id: "clearFormatting", keys: [MOD, "\\"], label: "Clear formatting" },
       { id: "plainPaste", keys: [MOD, SHIFT, "V"], label: "Paste as plain text" },

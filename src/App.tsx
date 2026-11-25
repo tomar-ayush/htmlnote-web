@@ -13,6 +13,7 @@ import { Navigation, requestPageRename } from "./navigation/Navigation";
 import { Ribbon } from "./ribbon/Ribbon";
 import { ShareModal } from "./share/ShareModal";
 import { fullscreenStore, toggleFullScreen } from "./fullscreen/fullscreen";
+import { LinkBubble } from "./links/LinkBubble";
 import { ShortcutsDialog } from "./shortcuts/ShortcutsDialog";
 import { ShortcutHint } from "./shortcuts/hint";
 import { initShortcuts } from "./shortcuts/shortcuts";
@@ -199,6 +200,7 @@ export function App() {
   return (
     <>
       {user === undefined ? null : user ? <Workspace key={user.id} /> : <AuthScreen />}
+      <LinkBubble />
       <ShortcutsDialog />
       <ShortcutHint />
       <DialogHost />

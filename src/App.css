@@ -1050,6 +1050,49 @@ body.reordering-items * {
   max-width: 1100px;
 }
 
+.link-bubble {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 320px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 10px 26px rgba(31, 35, 41, 0.18);
+  font-size: 12px;
+}
+
+.link-bubble .link-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.link-bubble button {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.link-bubble button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.link-bubble button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .shortcuts-dialog {
   display: flex;
   flex-direction: column;
