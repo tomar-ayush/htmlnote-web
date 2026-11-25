@@ -1035,6 +1035,21 @@ body.reordering-items * {
   color: #fff;
 }
 
+/* Full screen: the whole document goes full screen (so ribbon, find and dialogs stay
+   visible); hide the header and notebook panes so the page gets the room. */
+.app.is-fullscreen > .header,
+.app.is-fullscreen .workspace > .pane {
+  display: none;
+}
+
+.app.is-fullscreen .workspace {
+  grid-template-columns: 1fr;
+}
+
+.app.is-fullscreen .page-sheet {
+  max-width: 1100px;
+}
+
 .shortcuts-dialog {
   display: flex;
   flex-direction: column;

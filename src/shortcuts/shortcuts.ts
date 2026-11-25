@@ -1,6 +1,7 @@
 import { isDialogOpen, notify } from "../dialog/dialog";
 import { currentHtml, getPath, redo, saveNow, undo } from "../editor/editor";
 import { findStore, openFind, stepFind } from "../find/find";
+import { toggleFullScreen } from "../fullscreen/fullscreen";
 import { clearFormatting, exec, inlineCode, insertLink } from "../format/format";
 import { runNavCommand } from "../navigation/commands";
 import { shareStore } from "../share/share";
@@ -87,15 +88,6 @@ function renameOpenPage() {
   const input = document.querySelector<HTMLInputElement>(".page-title-input");
   input?.focus();
   input?.select();
-}
-
-function toggleFullScreen() {
-  if (document.fullscreenElement) {
-    void document.exitFullscreen();
-    return;
-  }
-  const sheet = document.querySelector<HTMLElement>(".page-sheet");
-  if (sheet?.requestFullscreen) void sheet.requestFullscreen().catch(() => {});
 }
 
 function printPage() {

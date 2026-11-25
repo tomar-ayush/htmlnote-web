@@ -12,6 +12,7 @@ import { Privacy, Terms } from "./legal/Legal";
 import { Navigation, requestPageRename } from "./navigation/Navigation";
 import { Ribbon } from "./ribbon/Ribbon";
 import { ShareModal } from "./share/ShareModal";
+import { fullscreenStore, toggleFullScreen } from "./fullscreen/fullscreen";
 import { ShortcutsDialog } from "./shortcuts/ShortcutsDialog";
 import { ShortcutHint } from "./shortcuts/hint";
 import { initShortcuts } from "./shortcuts/shortcuts";
@@ -24,12 +25,12 @@ import { Icon } from "./ui/icons";
 function Workspace() {
   const { path } = editorStore.use();
   const findOpen = findStore.use();
+  const fullscreen = fullscreenStore.use();
   const user = userStore.use();
   const { config, revision } = storageStore.use();
   const pageTitle = path ? (path.split("/").pop() ?? "").replace(/\.html?$/i, "") : "";
   const [titleDraft, setTitleDraft] = useState(pageTitle);
   const skipBlurRef = useRef(false);
-  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTitleDraft(pageTitle);
@@ -98,13 +99,13 @@ function Workspace() {
   }
 
   return (
-    <div className="app">
+    <div className={fullscreen ? "app is-fullscreen" : "app"}>
       <Header />
       <Ribbon />
       <main className="workspace">
         <Navigation key={revision} />
         <section className="canvas" aria-label="Page">
-          <div ref={sheetRef} className={path ? "page-sheet" : "page-sheet is-empty"}>
+          <div className={path ? "page-sheet" : "page-sheet is-empty"}>
             {path && (
               <header className="page-title-bar">
                 <input
@@ -136,12 +137,12 @@ function Workspace() {
                 <button
                   type="button"
                   className="page-share-btn"
-                  onClick={() => (document.fullscreenElement ? document.exitFullscreen() : sheetRef.current?.requestFullscreen())}
-                  data-tip="Full screen"
+                  onClick={toggleFullScreen}
+                  data-tip={fullscreen ? "Exit full screen" : "Full screen"}
                   data-shortcut="fullscreen"
                 >
                   <Icon name="expand" />
-                  <span>Full screen</span>
+                  <span>{fullscreen ? "Exit full screen" : "Full screen"}</span>
                 </button>
                 <button
                   type="button"
