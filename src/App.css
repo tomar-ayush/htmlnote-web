@@ -1035,6 +1035,151 @@ body.reordering-items * {
   color: #fff;
 }
 
+.shortcuts-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(72vh, 760px);
+  padding: 18px 20px 14px;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 20px 48px rgba(31, 35, 41, 0.24);
+}
+
+.shortcuts-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.shortcuts-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.shortcuts-dialog header button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.shortcuts-dialog header button:hover {
+  background: var(--hover);
+}
+
+.shortcut-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+  align-content: start;
+  gap: 2px 22px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.shortcut-groups section {
+  break-inside: avoid;
+}
+
+.shortcut-groups h3 {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shortcut-groups dl {
+  margin: 0;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.shortcut-row dt {
+  color: var(--ink);
+}
+
+.shortcut-row dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+
+.shortcut-row kbd {
+  min-width: 22px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--chrome);
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink);
+}
+
+/* Hover hint: rests for 2s, then names the control and its keys. */
+.shortcut-hint {
+  position: fixed;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  box-shadow: 0 10px 26px rgba(31, 35, 41, 0.28);
+  animation: hint-in 140ms var(--ease-out);
+}
+
+.shortcut-hint.above {
+  transform: translate(-50%, -100%);
+}
+
+.shortcut-hint .hint-label {
+  padding-right: 2px;
+  opacity: 0.82;
+}
+
+.shortcut-hint kbd {
+  min-width: 20px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.16);
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+  color: #fff;
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .toast {
   position: fixed;
   left: 50%;

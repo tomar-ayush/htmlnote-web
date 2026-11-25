@@ -315,6 +315,12 @@ const PATHS = {
     </>
   ),
   check: <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />,
+  keyboard: (
+    <>
+      <rect x="1.5" y="4.5" width="13" height="7" rx="1.4" />
+      <path d="M4 7h.6M6.7 7h.6M9.4 7h.6M12 7h.5M4 9.6h8" />
+    </>
+  ),
   expand: <path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />,
   drive: (
     <>

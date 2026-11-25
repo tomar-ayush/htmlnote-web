@@ -73,7 +73,7 @@ export function InsertPanel() {
       </Group>
       <Group label="Other">
         <Row>
-          <Btn title="Add link (Ctrl+K)" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
+          <Btn title="Add link" shortcut="link" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
           <Btn title="Insert a horizontal line" disabled={!doc} onClick={() => insertHtml("<hr>")}><Icon name="lineRule" /> Line</Btn>
         </Row>
         <Row>

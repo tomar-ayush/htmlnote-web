@@ -9,6 +9,8 @@ const dialogStore = createStore<Request | null>(null);
 const toastStore = createStore<Toast | null>(null);
 let toastId = 0;
 
+export const isDialogOpen = () => dialogStore.get() !== null;
+
 export function ask(title: string, options: AskOptions = {}) {
   return new Promise<string | null>((resolve) => {
     dialogStore.get()?.resolve(null);

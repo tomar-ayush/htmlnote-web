@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { signOut, userStore } from "../auth/auth";
 import { notify } from "../dialog/dialog";
 import { editorStore, saveNow, setAutosave } from "../editor/editor";
+import { openHelp } from "../shortcuts/help";
 import { openStorage, storageStore } from "../storage/storage";
 import { Icon } from "../ui/icons";
 
@@ -46,7 +47,7 @@ export function SaveStatus() {
       <span className={`save-dot ${tone}`} aria-hidden="true" />
       <span className={`save-text ${tone}`} aria-live="polite">{text}</span>
       {(!autosave || error) && (
-        <button type="button" className="header-btn save-btn primary" disabled={!dirty || saving} onClick={() => void saveNow()} title="Save (Ctrl+S)">
+        <button type="button" className="header-btn save-btn primary" disabled={!dirty || saving} onClick={() => void saveNow()} aria-label="Save now" data-tip="Save now" data-shortcut="save">
           <Icon name="save" size={14} /> Save
         </button>
       )}
@@ -97,6 +98,16 @@ export function Header() {
       </nav>
       <div className="account">
         {user?.email && <span className="account-email" title={user.email}>{user.email}</span>}
+        <button
+          type="button"
+          className="header-btn"
+          onClick={openHelp}
+          aria-label="Keyboard shortcuts"
+          data-tip="Keyboard shortcuts"
+          data-shortcut="help"
+        >
+          <Icon name="keyboard" size={14} />
+        </button>
         <button type="button" className="header-btn" onClick={openStorage} title={storageTitle}>
           <Icon name={storageIcon} size={14} />
           {storageLabel}

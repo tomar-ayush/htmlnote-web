@@ -51,8 +51,8 @@ export function HomePanel() {
     return () => doc.removeEventListener("selectionchange", refresh);
   }, [doc]);
 
-  const cmd = (name: string, title: string, label: ReactNode) => (
-    <Btn title={title} on={active.has(name)} disabled={!doc} onClick={() => exec(name)}>
+  const cmd = (name: string, title: string, label: ReactNode, shortcut?: string) => (
+    <Btn title={title} shortcut={shortcut} on={active.has(name)} disabled={!doc} onClick={() => exec(name)}>
       {label}
     </Btn>
   );
@@ -61,24 +61,24 @@ export function HomePanel() {
     <>
       <Group label="Undo">
         <Row>
-          <Btn title="Undo (Ctrl+Z)" disabled={!doc} onClick={undo}><Icon name="undo" /> Undo</Btn>
+          <Btn title="Undo" shortcut="undo" disabled={!doc} onClick={undo}><Icon name="undo" /> Undo</Btn>
         </Row>
         <Row>
-          <Btn title="Redo (Ctrl+Shift+Z)" disabled={!doc} onClick={redo}><Icon name="redo" /> Redo</Btn>
+          <Btn title="Redo" shortcut="redo" disabled={!doc} onClick={redo}><Icon name="redo" /> Redo</Btn>
         </Row>
       </Group>
       <Group label="Text">
         <Row>
-          <Picker placeholder="Style" title="Paragraph style" options={STYLES} onPick={(v) => exec("formatBlock", `<${v}>`)} />
+          <Picker placeholder="Style" title="Paragraph style" shortcut="heading" options={STYLES} onPick={(v) => exec("formatBlock", `<${v}>`)} />
           <Picker placeholder="Font" title="Font" options={FONTS} onPick={(v) => exec("fontName", v)} />
           <Picker placeholder="Size" title="Font size" options={SIZES} onPick={setFontSize} />
         </Row>
         <Row>
-          {cmd("bold", "Bold (Ctrl+B)", <b>B</b>)}
-          {cmd("italic", "Italic (Ctrl+I)", <i>I</i>)}
-          {cmd("underline", "Underline (Ctrl+U)", <u>U</u>)}
-          {cmd("strikeThrough", "Strikethrough", <s>S</s>)}
-          <Btn title="Inline code" disabled={!doc} onClick={inlineCode}><Icon name="code" /></Btn>
+          {cmd("bold", "Bold", <b>B</b>, "bold")}
+          {cmd("italic", "Italic", <i>I</i>, "italic")}
+          {cmd("underline", "Underline", <u>U</u>, "underline")}
+          {cmd("strikeThrough", "Strikethrough", <s>S</s>, "strike")}
+          <Btn title="Inline code" shortcut="inlineCode" disabled={!doc} onClick={inlineCode}><Icon name="code" /></Btn>
           <label className="swatch" title="Text color">
             <span className="swatch-letter">A</span>
             <NativeInput type="color" value="#c92a2a" onCommit={(v) => exec("foreColor", v)} />
@@ -87,31 +87,31 @@ export function HomePanel() {
             <span className="swatch-letter mark">ab</span>
             <NativeInput type="color" value="#ffe066" onCommit={(v) => exec("hiliteColor", v)} />
           </label>
-          <Btn title="Clear formatting" disabled={!doc} onClick={clearFormatting}><Icon name="clear" /> Clear</Btn>
+          <Btn title="Clear formatting" shortcut="clearFormatting" disabled={!doc} onClick={clearFormatting}><Icon name="clear" /> Clear</Btn>
         </Row>
       </Group>
       <Group label="Paragraph">
         <Row>
-          {cmd("insertUnorderedList", "Bulleted list", <><Icon name="listBullet" /> List</>)}
-          {cmd("insertOrderedList", "Numbered list", <><Icon name="listNumber" /> Numbered</>)}
+          {cmd("insertUnorderedList", "Bulleted list", <><Icon name="listBullet" /> List</>, "bulletedList")}
+          {cmd("insertOrderedList", "Numbered list", <><Icon name="listNumber" /> Numbered</>, "numberedList")}
           {cmd("outdent", "Decrease indent", <Icon name="outdent" />)}
           {cmd("indent", "Increase indent", <Icon name="indent" />)}
         </Row>
         <Row>
-          {cmd("justifyLeft", "Align left", <><Icon name="alignLeft" /> Left</>)}
-          {cmd("justifyCenter", "Center", <><Icon name="alignCenter" /> Center</>)}
-          {cmd("justifyRight", "Align right", <><Icon name="alignRight" /> Right</>)}
+          {cmd("justifyLeft", "Align left", <><Icon name="alignLeft" /> Left</>, "alignLeft")}
+          {cmd("justifyCenter", "Center", <><Icon name="alignCenter" /> Center</>, "alignCenter")}
+          {cmd("justifyRight", "Align right", <><Icon name="alignRight" /> Right</>, "alignRight")}
           <Btn title="Less line spacing" disabled={!doc} onClick={() => lineHeight(-0.2)}><Icon name="lineHeight" />−</Btn>
           <Btn title="More line spacing" disabled={!doc} onClick={() => lineHeight(0.2)}><Icon name="lineHeight" />+</Btn>
         </Row>
       </Group>
       <Group label="Links & share">
         <Row>
-          <Btn title="Add link (Ctrl+K)" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
+          <Btn title="Add link" shortcut="link" disabled={!doc} onClick={() => void insertLink()}><Icon name="link" /> Link</Btn>
           <Btn title="Remove link" disabled={!doc} onClick={() => exec("unlink")}><Icon name="unlink" /> Unlink</Btn>
         </Row>
         <Row>
-          <Btn title="Find and replace (Ctrl+F)" disabled={!doc} onClick={openFind}><Icon name="search" /> Find</Btn>
+          <Btn title="Find and replace" shortcut="find" disabled={!doc} onClick={openFind}><Icon name="search" /> Find</Btn>
           <Btn title="Share page" disabled={!path} onClick={() => path && openShare(path)}><Icon name="share" /> Share</Btn>
         </Row>
       </Group>

@@ -1,5 +1,5 @@
 import { ask } from "../dialog/dialog";
-import { change, escapeHtml, focusDoc, getDoc, setShortcut } from "../editor/editor";
+import { change, escapeHtml, focusDoc, getDoc } from "../editor/editor";
 
 const BLOCKS = "p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,td,th,div";
 
@@ -26,8 +26,22 @@ export function setFontSize(px: string) {
 }
 
 export function inlineCode() {
-  const text = getDoc()?.getSelection()?.toString();
-  if (text) run((doc) => doc.execCommand("insertHTML", false, `<code>${escapeHtml(text)}</code>`));
+  const doc = getDoc();
+  const sel = doc?.getSelection();
+  const text = sel?.toString();
+  if (!doc || !sel || !sel.rangeCount || !text) return;
+  const code = doc.createElement("code");
+  code.textContent = text;
+  const range = sel.getRangeAt(0);
+  change(() => {
+    range.deleteContents();
+    range.insertNode(code);
+    const after = doc.createRange();
+    after.setStartAfter(code);
+    after.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(after);
+  });
 }
 
 export function clearFormatting() {
@@ -77,5 +91,3 @@ export function activeCommands(doc: Document, commands: string[]) {
     }),
   );
 }
-
-setShortcut("k", () => void insertLink());

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { change, editorStore } from "../editor/editor";
-import { clearPaint, findStore, paint, replaceRange, scrollToRange, search } from "./find";
+import { clearPaint, findStore, paint, replaceRange, scrollToRange, search, setFindStepper } from "./find";
 
 export function FindPanel() {
   const { doc, revision } = editorStore.use();
@@ -11,6 +11,12 @@ export function FindPanel() {
   const [ranges, setRanges] = useState<Range[]>([]);
   const [tick, setTick] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const stepRef = useRef<(step: number) => void>(() => {});
+
+  useEffect(() => {
+    setFindStepper((step) => stepRef.current(step));
+    return () => setFindStepper(null);
+  }, []);
 
   useEffect(() => {
     input.current?.focus();
@@ -35,6 +41,8 @@ export function FindPanel() {
     setIndex(next);
     scrollToRange(doc, ranges[next]);
   };
+
+  stepRef.current = go;
 
   const replace = (all: boolean) => {
     if (current < 0) return;
@@ -66,11 +74,11 @@ export function FindPanel() {
       </label>
       <span className="find-count">{count}</span>
       <div className="row">
-        <button type="button" title="Previous" onClick={() => go(-1)}>↑</button>
-        <button type="button" title="Next" onClick={() => go(1)}>↓</button>
+        <button type="button" aria-label="Previous match" data-tip="Previous match" data-shortcut="findPrev" onClick={() => go(-1)}>↑</button>
+        <button type="button" aria-label="Next match" data-tip="Next match" data-shortcut="findNext" onClick={() => go(1)}>↓</button>
         <button type="button" onClick={() => replace(false)}>Replace</button>
         <button type="button" onClick={() => replace(true)}>Replace all</button>
-        <button type="button" title="Close" onClick={() => findStore.set(false)}>✕</button>
+        <button type="button" aria-label="Close find" data-tip="Close find" data-shortcut="escape" onClick={() => findStore.set(false)}>✕</button>
       </div>
     </div>
   );

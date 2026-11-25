@@ -31,6 +31,7 @@ import {
   writeLocalTree,
 } from "../sync/localdb";
 import { Icon } from "../ui/icons";
+import { setNavCommands } from "./commands";
 
 const COLORS = ["#1f5f7a", "#b5482b", "#2f7d4f", "#7a4fb0", "#b07d12", "#3a6fd8", "#a33d6b", "#4c6a6e"];
 const LAST_KEY = "htmlnote:last";
@@ -441,7 +442,10 @@ export function Navigation() {
 
   const addPage = () => {
     const section = findSection(notebooks, sectionPath);
-    if (!section) return;
+    if (!section) {
+      notify("Pick a section before adding a page.", "error");
+      return;
+    }
     const prevTree = notebooks;
     const { stem, file } = uniquePageFile(section.pages.map((p) => p.name), "Untitled page");
     const newPath = `${section.path}/${file}`;
@@ -467,6 +471,58 @@ export function Navigation() {
       },
     );
   };
+
+  const movePage = (dir: -1 | 1) => {
+    const target = editorStore.get().path;
+    if (!target) return notify("Open a page to move it.", "error");
+    const owner = notebooks.find((nb) => nb.sections.some((s) => s.pages.some((p) => p.path === target)));
+    const section = owner?.sections.find((s) => s.pages.some((p) => p.path === target));
+    if (!section) return;
+    const from = section.pages.findIndex((p) => p.path === target);
+    const to = from + dir;
+    if (to < 0 || to >= section.pages.length) {
+      notify(
+        dir < 0
+          ? `"${section.pages[from].name}" is already first in this section.`
+          : `"${section.pages[from].name}" is already last in this section.`,
+      );
+      return;
+    }
+    treeReadyRef.current = true;
+    const prevTree = notebooks;
+    const nextTree = reorderInTree(prevTree, "pages", section.path, from, to);
+    setNotebooks(nextTree);
+    const items = findSection(nextTree, section.path)?.pages.map((p) => resolvePath(p.path)) ?? [];
+    enqueue(
+      async () => {
+        await api.reorder("pages", resolvePath(section.path), items);
+      },
+      () => setNotebooks(prevTree),
+    );
+  };
+
+  const commandsRef = useRef({
+    newPage: () => addPage(),
+    newNotebook: () => addNotebook(),
+    movePageUp: () => movePage(-1),
+    movePageDown: () => movePage(1),
+  });
+  commandsRef.current = {
+    newPage: addPage,
+    newNotebook: addNotebook,
+    movePageUp: () => movePage(-1),
+    movePageDown: () => movePage(1),
+  };
+
+  useEffect(() => {
+    setNavCommands({
+      newPage: () => commandsRef.current.newPage(),
+      newNotebook: () => commandsRef.current.newNotebook(),
+      movePageUp: () => commandsRef.current.movePageUp(),
+      movePageDown: () => commandsRef.current.movePageDown(),
+    });
+    return () => setNavCommands(null);
+  }, []);
 
   const importFiles = async (files: File[]) => {
     const section = findSection(notebooks, sectionPath);
@@ -680,7 +736,7 @@ export function Navigation() {
       <aside className="pane notebooks" aria-label="Notebooks">
         <div className="pane-head">
           <span>Notebooks</span>
-          <button type="button" className="add" onClick={addNotebook}><Icon name="plus" size={13} /> Notebook</button>
+          <button type="button" className="add" onClick={addNotebook} data-tip="New notebook" data-shortcut="newNotebook"><Icon name="plus" size={13} /> Notebook</button>
         </div>
         {!notebooks.length && <p className="hint">Add a notebook to start collecting pages.</p>}
         {notebooks.map((nb) => (
@@ -748,7 +804,7 @@ export function Navigation() {
           <span>{section?.name ?? "Pages"}</span>
         </div>
         <div className="page-actions">
-          <button type="button" disabled={!section} onClick={addPage}><Icon name="plus" size={13} /> Page</button>
+          <button type="button" disabled={!section} onClick={addPage} data-tip="New page" data-shortcut="newPage"><Icon name="plus" size={13} /> Page</button>
           <button type="button" disabled={!section} onClick={() => importInput.current?.click()}><Icon name="upload" size={13} /> Import .html</button>
           <input
             ref={importInput}

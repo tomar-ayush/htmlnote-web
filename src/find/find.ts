@@ -1,4 +1,3 @@
-import { setShortcut } from "../editor/editor";
 import { createStore } from "../store/store";
 
 const STYLE_ID = "hn-find-style";
@@ -60,4 +59,16 @@ export function replaceRange(doc: Document, range: Range, text: string) {
   range.insertNode(doc.createTextNode(text));
 }
 
-setShortcut("f", openFind);
+let stepper: ((step: number) => void) | null = null;
+
+export const setFindStepper = (fn: ((step: number) => void) | null) => {
+  stepper = fn;
+};
+
+export function stepFind(step: number) {
+  if (!findStore.get()) {
+    openFind();
+    return;
+  }
+  stepper?.(step);
+}

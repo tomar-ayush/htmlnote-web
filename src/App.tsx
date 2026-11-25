@@ -12,6 +12,9 @@ import { Privacy, Terms } from "./legal/Legal";
 import { Navigation, requestPageRename } from "./navigation/Navigation";
 import { Ribbon } from "./ribbon/Ribbon";
 import { ShareModal } from "./share/ShareModal";
+import { ShortcutsDialog } from "./shortcuts/ShortcutsDialog";
+import { ShortcutHint } from "./shortcuts/hint";
+import { initShortcuts } from "./shortcuts/shortcuts";
 import { openShare } from "./share/share";
 import { StorageModal, StorageSetup } from "./storage/StorageModal";
 import { loadStorage, resetStorage, storageStore } from "./storage/storage";
@@ -39,6 +42,10 @@ function Workspace() {
         : `${config?.mode ?? "none"}:${config?.bucket || ""}`;
     setSyncScope(`${user?.id ?? "anon"}:${scopeKey}`);
   }, [user?.id, config?.mode, config?.driveEmail, config?.bucket]);
+
+  useEffect(() => {
+    initShortcuts();
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -130,7 +137,8 @@ function Workspace() {
                   type="button"
                   className="page-share-btn"
                   onClick={() => (document.fullscreenElement ? document.exitFullscreen() : sheetRef.current?.requestFullscreen())}
-                  title="Full screen"
+                  data-tip="Full screen"
+                  data-shortcut="fullscreen"
                 >
                   <Icon name="expand" />
                   <span>Full screen</span>
@@ -190,6 +198,8 @@ export function App() {
   return (
     <>
       {user === undefined ? null : user ? <Workspace key={user.id} /> : <AuthScreen />}
+      <ShortcutsDialog />
+      <ShortcutHint />
       <DialogHost />
     </>
   );

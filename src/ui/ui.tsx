@@ -13,15 +13,22 @@ export function Row({ children }: { children: ReactNode }) {
   return <div className="group-row">{children}</div>;
 }
 
-type BtnProps = { onClick: () => void; title?: string; on?: boolean; disabled?: boolean; children: ReactNode };
+/**
+ * `shortcut` is an id from `shortcuts/list.ts`. Controls that have one drop the native
+ * tooltip and instead show the hover hint (label + keys) after a short pause.
+ */
+type BtnProps = { onClick: () => void; title?: string; on?: boolean; disabled?: boolean; shortcut?: string; children: ReactNode };
 
-export function Btn({ onClick, title, on, disabled, children }: BtnProps) {
+export function Btn({ onClick, title, on, disabled, shortcut, children }: BtnProps) {
   return (
     <button
       type="button"
       className={on ? "on" : undefined}
       aria-pressed={on}
-      title={title}
+      aria-label={shortcut ? title : undefined}
+      title={shortcut ? undefined : title}
+      data-tip={shortcut ? title : undefined}
+      data-shortcut={shortcut}
       disabled={disabled}
       onClick={onClick}
     >
@@ -54,11 +61,18 @@ export function NativeInput({ value, onCommit, ...rest }: NativeInputProps) {
   return <input ref={ref} defaultValue={value} {...rest} />;
 }
 
-type PickerProps = { placeholder: string; title: string; options: [string, string][]; onPick: (value: string) => void };
+type PickerProps = { placeholder: string; title: string; shortcut?: string; options: [string, string][]; onPick: (value: string) => void };
 
-export function Picker({ placeholder, title, options, onPick }: PickerProps) {
+export function Picker({ placeholder, title, shortcut, options, onPick }: PickerProps) {
   return (
-    <select title={title} value="" onChange={(e) => e.target.value && onPick(e.target.value)}>
+    <select
+      title={shortcut ? undefined : title}
+      aria-label={shortcut ? title : undefined}
+      data-tip={shortcut ? title : undefined}
+      data-shortcut={shortcut}
+      value=""
+      onChange={(e) => e.target.value && onPick(e.target.value)}
+    >
       <option value="">{placeholder}</option>
       {options.map(([value, label]) => (
         <option key={value} value={value}>

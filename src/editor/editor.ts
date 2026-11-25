@@ -11,6 +11,7 @@ import {
   resolveCanonicalPath,
   writeLocalPage,
 } from "../sync/localdb";
+import { consumePlainPaste, runKeyHandler } from "../shortcuts/keys";
 
 type Current = { path: string; doc: Document; prevEditable: string | null };
 export type EditorState = {
@@ -51,7 +52,6 @@ export const editorStore = createStore<EditorState>({
   error: "",
 });
 const readyHandlers: ((doc: Document) => void)[] = [];
-const shortcuts: Record<string, () => void> = {};
 const pageCache = new Map<string, string>();
 const inflightReads = new Map<string, Promise<string>>();
 let frameEl: HTMLIFrameElement | null = null;
@@ -72,9 +72,6 @@ export const attachFrame = (el: HTMLIFrameElement | null) => {
   frameEl = el;
 };
 export const onPageReady = (fn: (doc: Document) => void) => readyHandlers.push(fn);
-export const setShortcut = (key: string, fn: () => void) => {
-  shortcuts[key] = fn;
-};
 export const getDoc = () => current?.doc ?? null;
 export const getPath = () => current?.path ?? null;
 export function focusDoc() {
@@ -227,6 +224,7 @@ function mountHtml(el: HTMLIFrameElement, path: string, html: string, mine: numb
   doc.body.setAttribute("contenteditable", "true");
   doc.body.addEventListener("input", onInput);
   doc.addEventListener("keydown", onKeyDown);
+  doc.addEventListener("paste", onPaste);
   undoStack = [];
   redoStack = [];
   snapshot = doc.body.innerHTML;
@@ -343,17 +341,16 @@ export const undo = () => restore(undoStack, redoStack);
 export const redo = () => restore(redoStack, undoStack);
 
 function onKeyDown(e: KeyboardEvent) {
-  if (!(e.metaKey || e.ctrlKey)) return;
-  const key = e.key.toLowerCase();
-  const builtIn: Record<string, () => void> = {
-    z: () => (e.shiftKey ? redo() : undo()),
-    y: redo,
-    s: () => void saveNow(),
-  };
-  const action = builtIn[key] ?? shortcuts[key];
-  if (!action) return;
+  runKeyHandler(e, true);
+}
+
+function onPaste(e: ClipboardEvent) {
+  if (!current || !consumePlainPaste()) return;
   e.preventDefault();
-  action();
+  const text = e.clipboardData?.getData("text/plain") ?? "";
+  if (!text) return;
+  const html = text.split(/\r?\n/).map(escapeHtml).join("<br>");
+  change((doc) => doc.execCommand("insertHTML", false, html));
 }
 
 function cleanHtml({ doc, prevEditable, path }: Current) {
@@ -437,6 +434,10 @@ function save() {
 }
 
 export const saveNow = () => save();
+
+export function currentHtml() {
+  return current ? cleanHtml(current) : null;
+}
 
 export function flush() {
   return pending ? save() : saving;
